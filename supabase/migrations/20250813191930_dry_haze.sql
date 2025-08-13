@@ -1,5 +1,5 @@
 /*
-  # Initial Schema for Deer Derby Racing Game
+  # Initial Schema for Animal Racing Game
 
   1. New Tables
     - `profiles`

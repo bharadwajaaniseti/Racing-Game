@@ -13,7 +13,7 @@ export function TopBarAuth() {
           <Link to="/" className="flex items-center space-x-2 hover:text-cyan-400 transition-colors">
             <Car className="h-6 w-6 text-cyan-400" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              Deer Derby
+              Animal Racing
             </h1>
           </Link>
 

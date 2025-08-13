@@ -121,7 +121,7 @@ export function Auth() {
             <div className="bg-cyan-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
               <Mail className="h-8 w-8 text-cyan-600" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome to Deer Derby</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Welcome to Animal Racing</h2>
             <p className="text-gray-400">Sign in with your email to get started</p>
           </div>
 
