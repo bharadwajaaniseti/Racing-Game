@@ -108,6 +108,7 @@ CREATE TABLE market_animals (
   acceleration integer DEFAULT 50 CHECK (acceleration >= 1 AND acceleration <= 100),
   stamina integer DEFAULT 50 CHECK (stamina >= 1 AND stamina <= 100),
   temper integer DEFAULT 50 CHECK (temper >= 1 AND temper <= 100),
+  created_by uuid REFERENCES profiles(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now()
 );
 

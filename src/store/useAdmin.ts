@@ -47,7 +47,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { data, error } = await supabase
-        .from('animals')
+        .from('market_animals')
         .select(`
           *,
           profiles (
@@ -137,7 +137,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { error } = await supabase
-        .from('animals')
+        .from('market_animals')
         .update(updates)
         .eq('id', animalId)
 
@@ -157,7 +157,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { error } = await supabase
-        .from('animals')
+        .from('market_animals')
         .delete()
         .eq('id', animalId)
 
