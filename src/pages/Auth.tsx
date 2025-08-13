@@ -23,7 +23,8 @@ export function Auth() {
     e.preventDefault()
     if (!email.trim()) return
 
-    await signIn(email)
+    const redirectTo = `${window.location.origin}/auth`
+    await signIn(email, redirectTo)
     if (!error) {
       setStep('check-email')
       setMessage('Check your email for the magic link!')
