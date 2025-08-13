@@ -50,7 +50,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
         .from('market_animals')
         .select(`
           *,
-          profiles (
+          created_by_profile:profiles!created_by (
             username
           )
         `)
@@ -136,19 +136,32 @@ export const useAdmin = create<AdminState>((set, get) => ({
   updateAnimal: async (animalId: string, updates: Partial<Animal>) => {
     set({ loading: true, error: null })
     try {
-      const { error } = await supabase
+      // Filter out joined fields and only keep actual market_animals columns
+      const {
+        created_by_profile,
+        profiles,
+        ...marketAnimalUpdates
+      } = updates as any
+
+      console.log('Updating animal:', animalId)
+      console.log('Original updates:', updates)
+      console.log('Filtered updates:', marketAnimalUpdates)
+
+      const { data, error } = await supabase
         .from('market_animals')
-        .update(updates)
+        .update(marketAnimalUpdates)
         .eq('id', animalId)
+        .select()
+
+      console.log('Update result:', { data, error })
 
       if (error) throw error
 
-      const { animals } = get()
-      const updatedAnimals = animals.map(a => 
-        a.id === animalId ? { ...a, ...updates } : a
-      )
-      set({ animals: updatedAnimals, loading: false })
+      // Refresh the animals list to get the latest data
+      const { fetchAllAnimals } = get()
+      await fetchAllAnimals()
     } catch (error) {
+      console.error('Update error:', error)
       set({ error: (error as Error).message, loading: false })
     }
   },
