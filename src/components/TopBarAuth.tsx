@@ -66,7 +66,11 @@ export function TopBarAuth() {
             {user ? (
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-300">
-                  Welcome, {profile?.username || 'User'}
+                  {profile === null ? 'Loading...' : profile?.is_admin ? 'Welcome Admin' : `Welcome, ${user.email}`}
+                  <br />
+                  <small style={{fontSize: '10px', color: '#666'}}>
+                    Debug: profile={profile ? 'exists' : 'null'}, is_admin={profile?.is_admin?.toString()}
+                  </small>
                 </span>
                 <button
                   onClick={signOut}

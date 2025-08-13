@@ -22,13 +22,21 @@ export const useUser = create<UserState>((set, get) => ({
   signIn: async (email: string, password: string) => {
     set({ loading: true, error: null })
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting to sign in:', email)
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-      if (error) throw error
+      
+      if (error) {
+        console.error('Sign in error:', error)
+        throw error
+      }
+      
+      console.log('Sign in successful:', data.user?.id)
       set({ loading: false })
     } catch (error) {
+      console.error('Sign in caught error:', error)
       set({ error: (error as Error).message, loading: false })
     }
   },
@@ -46,19 +54,32 @@ export const useUser = create<UserState>((set, get) => ({
 
   fetchProfile: async () => {
     const { user } = get()
-    if (!user) return
+    if (!user) {
+      console.log('No user found in state')
+      return
+    }
 
     set({ loading: true, error: null })
     try {
+      console.log('Fetching profile for user:', user.id)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error) {
+        console.error('Profile fetch error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
+        if (error.code !== 'PGRST116') throw error
+      }
+      
+      console.log('Profile data:', data)
+      console.log('Profile data details:', JSON.stringify(data, null, 2))
       set({ profile: data, loading: false })
     } catch (error) {
+      console.error('Profile fetch caught error:', error)
+      console.error('Caught error details:', JSON.stringify(error, null, 2))
       set({ error: (error as Error).message, loading: false })
     }
   },
