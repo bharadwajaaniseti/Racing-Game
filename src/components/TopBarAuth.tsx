@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { User, Trophy, Car, Home } from 'lucide-react'
+import { User, Trophy, Car, Home, ShoppingCart, Settings } from 'lucide-react'
 import { useUser } from '../store/useUser'
 
 export function TopBarAuth() {
@@ -36,12 +36,28 @@ export function TopBarAuth() {
                   <span>Garage</span>
                 </Link>
                 <Link 
+                  to="/market" 
+                  className="flex items-center space-x-1 hover:text-cyan-400 transition-colors"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  <span>Market</span>
+                </Link>
+                <Link 
                   to="/leaderboard" 
                   className="flex items-center space-x-1 hover:text-cyan-400 transition-colors"
                 >
                   <Trophy className="h-4 w-4" />
                   <span>Leaderboard</span>
                 </Link>
+                {profile?.is_admin && (
+                  <Link 
+                    to="/admin" 
+                    className="flex items-center space-x-1 hover:text-red-400 transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Admin</span>
+                  </Link>
+                )}
               </>
             )}
           </nav>

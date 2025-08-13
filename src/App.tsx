@@ -6,6 +6,8 @@ import { useUser } from './store/useUser'
 import { TopBarAuth } from './components/TopBarAuth'
 import { Home } from './pages/Home'
 import { Auth } from './pages/Auth'
+import { Admin } from './pages/Admin'
+import { Market } from './pages/Market'
 import { Garage } from './pages/Garage'
 import { Race } from './pages/Race'
 import { Leaderboard } from './pages/Leaderboard'
@@ -73,6 +75,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<AuthHandler />} />
+          <Route 
+            path="/admin" 
+            element={user ? <Admin /> : <Navigate to="/auth" replace />} 
+          />
+          <Route path="/market" element={<Market />} />
           <Route 
             path="/garage" 
             element={user ? <Garage /> : <Navigate to="/auth" replace />} 
