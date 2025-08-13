@@ -7,7 +7,7 @@ interface UserState {
   profile: any | null
   loading: boolean
   error: string | null
-  signIn: (email: string, redirectTo?: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   fetchProfile: () => Promise<void>
   createProfile: (username: string) => Promise<void>
@@ -19,15 +19,12 @@ export const useUser = create<UserState>((set, get) => ({
   loading: false,
   error: null,
 
-  signIn: async (email: string, redirectTo?: string) => {
+  signIn: async (email: string, password: string) => {
     set({ loading: true, error: null })
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectTo
-        }
+        password
       })
       if (error) throw error
       set({ loading: false })

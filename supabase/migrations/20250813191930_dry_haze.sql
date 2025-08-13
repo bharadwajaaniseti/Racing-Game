@@ -73,6 +73,7 @@
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   username text UNIQUE NOT NULL,
+  is_admin boolean DEFAULT false,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -234,6 +235,49 @@ CREATE POLICY "Users can update own leaderboard entry"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- Admin policies
+CREATE POLICY "Admins can view all data"
+  ON profiles FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
+CREATE POLICY "Admins can manage all animals"
+  ON animals FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
+CREATE POLICY "Admins can manage all inventory"
+  ON inventory FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
+CREATE POLICY "Admins can manage all races"
+  ON races FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
+CREATE POLICY "Admins can manage all race entries"
+  ON race_entries FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
+CREATE POLICY "Admins can manage all leaderboard entries"
+  ON leaderboard FOR ALL
+  TO authenticated
+  USING (
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true
+  );
+
 -- Add indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_animals_user_id ON animals(user_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id);
@@ -267,3 +311,56 @@ CREATE TRIGGER update_inventory_updated_at
 CREATE TRIGGER update_leaderboard_updated_at
   BEFORE UPDATE ON leaderboard
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to create an admin user
+CREATE OR REPLACE FUNCTION create_admin_user(
+  admin_email TEXT,
+  admin_password TEXT,
+  admin_username TEXT
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  user_id uuid;
+BEGIN
+  -- Create the user in auth.users
+  user_id := (
+    SELECT id FROM auth.users 
+    WHERE email = admin_email
+    LIMIT 1
+  );
+  
+  IF user_id IS NULL THEN
+    user_id := (
+      SELECT id FROM auth.users
+      WHERE id = (
+        INSERT INTO auth.users (email, encrypted_password, email_confirmed_at, role)
+        VALUES (
+          admin_email,
+          crypt(admin_password, gen_salt('bf')),
+          now(),
+          'authenticated'
+        )
+        RETURNING id
+      )
+    );
+  END IF;
+
+  -- Create the admin profile
+  INSERT INTO public.profiles (id, username, is_admin)
+  VALUES (user_id, admin_username, true)
+  ON CONFLICT (id) DO UPDATE
+  SET is_admin = true;
+
+  RETURN user_id;
+END;
+$$;
+
+-- Create initial admin user
+SELECT create_admin_user(
+  'admin@animalracing.com',
+  'change_this_password_immediately',
+  'admin'
+);

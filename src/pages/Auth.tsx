@@ -5,8 +5,9 @@ import { useUser } from '../store/useUser'
 
 export function Auth() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [step, setStep] = useState<'signin' | 'check-email' | 'create-profile'>('signin')
+  const [step, setStep] = useState<'signin' | 'create-profile'>('signin')
   const [message, setMessage] = useState('')
   const { user, profile, loading, error, signIn, createProfile } = useUser()
   const navigate = useNavigate()
@@ -21,13 +22,11 @@ export function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || !password.trim()) return
 
-    const redirectTo = `${window.location.origin}/auth`
-    await signIn(email, redirectTo)
+    await signIn(email, password)
     if (!error) {
-      setStep('check-email')
-      setMessage('Check your email for the magic link!')
+      setMessage('Sign in successful!')
     }
   }
 
@@ -41,30 +40,7 @@ export function Auth() {
     }
   }
 
-  if (step === 'check-email') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900 flex items-center justify-center px-4">
-        <div className="max-w-md w-full">
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-cyan-500/30 text-center">
-            <div className="bg-green-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-              <Check className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-4">Check Your Email</h2>
-            <p className="text-gray-300 mb-6">
-              We've sent a magic link to <span className="font-medium text-cyan-400">{email}</span>. 
-              Click the link in your email to sign in.
-            </p>
-            <button
-              onClick={() => setStep('signin')}
-              className="text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              ← Back to sign in
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+
 
   if (step === 'create-profile') {
     return (
@@ -126,19 +102,35 @@ export function Auth() {
           </div>
 
           <form onSubmit={handleSignIn} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email address
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                placeholder="Enter your email"
-                required
-              />
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
             </div>
 
             {error && (
@@ -161,16 +153,13 @@ export function Auth() {
               {loading ? (
                 <Loader className="h-5 w-5 animate-spin" />
               ) : (
-                <>
-                  <Mail className="h-5 w-5" />
-                  <span>Send Magic Link</span>
-                </>
+                <span>Sign In</span>
               )}
             </button>
           </form>
 
           <p className="text-center text-gray-400 text-sm mt-6">
-            We'll send you a magic link for a password-free sign in experience.
+            Sign in with your email and password to access your account.
           </p>
         </div>
       </div>
