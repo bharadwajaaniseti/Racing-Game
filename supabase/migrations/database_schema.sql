@@ -16,6 +16,7 @@ CREATE TABLE profiles (
   id uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   username text UNIQUE NOT NULL,
   is_admin boolean DEFAULT false,
+  gold integer DEFAULT 100 CHECK (gold >= 0),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

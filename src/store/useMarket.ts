@@ -81,13 +81,13 @@ export const useMarket = create<MarketState>((set, get) => ({
       if (error && error.code !== 'PGRST116') throw error
       
       if (!data) {
-        // Create initial currency record
+        // Create initial currency record if it doesn't exist
         const { error: insertError } = await supabase
           .from('user_currency')
-          .insert([{ user_id: user.id, gold: 1000 }])
+          .insert([{ user_id: user.id, gold: 100 }])
         
         if (insertError) throw insertError
-        set({ userGold: 1000 })
+        set({ userGold: 100 })
       } else {
         set({ userGold: data.gold })
       }

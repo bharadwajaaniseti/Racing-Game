@@ -66,6 +66,8 @@ export const useUser = create<UserState>((set, get) => ({
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       set({ user: null, profile: null, loading: false })
+      // Redirect to homepage after successful sign out
+      window.location.href = '/'
     } catch (error) {
       set({ error: (error as Error).message, loading: false })
     }

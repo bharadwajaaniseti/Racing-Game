@@ -40,8 +40,39 @@ export function Market() {
 
     setPurchaseLoading(animal.id)
     try {
-      const { error } = await supabase.rpc('buy_animal', { p_market_id: animal.id })
-      if (error) throw error
+      // Get the user's current currency
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Create the animal for the user
+      const { error: createError } = await supabase
+        .from('animals')
+        .insert([{
+          user_id: user.id,
+          name: animal.name,
+          type: animal.type,
+          speed: animal.speed,
+          acceleration: animal.acceleration,
+          stamina: animal.stamina,
+          temper: animal.temper,
+          level: 1,
+          model_url: animal.model_url,
+          model_scale: animal.model_scale,
+          model_rotation: animal.model_rotation,
+          idle_anim: animal.idle_anim,
+          run_anim: animal.run_anim
+        }])
+
+      if (createError) throw createError
+
+      // Update user's currency
+      const { error: updateError } = await supabase
+        .from('user_currency')
+        .update({ gold: userGold - price })
+        .eq('user_id', user.id)
+
+      if (updateError) throw updateError
+
       alert(`Successfully purchased ${animal.name}!`)
       // Refresh gold and market after purchase
       fetchUserGold()
