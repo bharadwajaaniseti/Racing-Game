@@ -325,7 +325,11 @@ export function Market() {
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {marketItems
-                .filter(item => activeTab === 'food' ? item.type === 'food' : item.type !== 'food')
+                .filter(item => {
+                  if (activeTab === 'food') return item.type === 'food';
+                  if (activeTab === 'items') return ['training', 'boost', 'cosmetic'].includes(item.type);
+                  return false;
+                })
                 .map((item) => (
                 <div
                   key={item.id}

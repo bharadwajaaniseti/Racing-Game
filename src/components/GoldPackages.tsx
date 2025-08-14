@@ -1,5 +1,5 @@
 import { Coins } from 'lucide-react'
-import type { MarketItem } from '../types/market'
+import type { MarketItem } from '../game/types'
 
 interface GoldPackagesProps {
   marketItems: MarketItem[]

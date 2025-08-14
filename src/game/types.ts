@@ -1,4 +1,4 @@
-export type ItemType = 'food' | 'training' | 'boost' | 'cosmetic'
+export type ItemType = 'food' | 'training' | 'boost' | 'cosmetic' | 'gold'
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
 
 export type EffectType = 'stat_boost' | 'race_boost' | 'cosmetic'
@@ -23,6 +23,7 @@ export interface MarketItem {
   rarity: ItemRarity
   max_stock: number | null
   created_at: string
+  is_active: boolean
 }
 
 export interface Animal {
