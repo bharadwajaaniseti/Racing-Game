@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useUser } from '../store/useUser'
 import { useMarket } from '../store/useMarket'
 import { ModelViewer } from '../components/ModelViewer'
+import { GoldPackages } from '../components/GoldPackages'
 import type { Animal, ItemType, MarketItem } from '../game/types'
 
 export function Market() {
@@ -20,7 +21,7 @@ export function Market() {
     purchaseItem 
   } = useMarket()
   
-  const [activeTab, setActiveTab] = useState<'animals' | 'items' | 'food'>('animals')
+  const [activeTab, setActiveTab] = useState<'animals' | 'items' | 'food' | 'gold'>('animals')
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null)
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null)
 
@@ -155,6 +156,17 @@ export function Market() {
                 <Heart className="h-4 w-4 inline mr-2" />
                 Food
               </button>
+              <button
+                onClick={() => setActiveTab('gold')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'gold'
+                    ? 'bg-yellow-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Coins className="h-4 w-4 inline mr-2" />
+                Gold
+              </button>
             </div>
           </div>
         </div>
@@ -164,7 +176,7 @@ export function Market() {
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Animals List */}
             <div className="lg:col-span-2 space-y-4">
-              <h2 className="text-2xl font-bold text-white mb-4">Premium Deer Collection</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">Premium Animal Collection</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 {marketAnimals.map((animal) => (
                   <div
@@ -430,6 +442,14 @@ export function Market() {
                 <p className="text-gray-500">Check back later for new items!</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Gold Packages Tab */}
+        {activeTab === 'gold' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">Gold Packages</h2>
+            <GoldPackages marketItems={marketItems} />
           </div>
         )}
 

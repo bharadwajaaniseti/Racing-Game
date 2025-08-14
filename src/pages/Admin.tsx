@@ -5,6 +5,7 @@ import { useAdmin } from '../store/useAdmin'
 import { ModelViewer } from '../components/ModelViewer'
 import type { Animal } from '../game/types'
 import MarketAnimalForm from './admin/MarketAnimalForm'
+import MarketItemForm from './admin/MarketItemForm'
 
 interface EditingAnimal {
   id?: string;
@@ -35,6 +36,7 @@ interface EditingAnimal {
   lap?: number;
   distance?: number;
   finished?: boolean;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
 export function Admin() {
@@ -62,24 +64,18 @@ export function Admin() {
   }
 
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [newMarketItem, setNewMarketItem] = useState({
-    type: 'food',
-    name: '',
-    description: '',
-    price: 0,
-    effect_value: 0
-  })
+  // State for managing editing
   
   const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'items' | 'food' | 'gold'>('animals')
   const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
+  const [editingItem, setEditingItem] = useState<any>(null)
+  const [showItemForm, setShowItemForm] = useState(false)
 
   // Handle Escape key to close modal
   useEffect(() => {
     if (editingAnimal) {
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
-          setShowCreateForm(false);
           setEditingAnimal(null);
         }
       };
@@ -196,7 +192,6 @@ export function Admin() {
                     level: 1,
                     price: 100
                   });
-                  setShowCreateForm(true);
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
@@ -339,19 +334,34 @@ export function Admin() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Food & Consumables</h2>
               <button
-                onClick={() => setNewMarketItem({
-                  type: 'food',
-                  name: '',
-                  description: '',
-                  price: 0,
-                  effect_value: 0
-                })}
+                onClick={() => {
+                  setEditingItem(null)
+                  setShowItemForm(true)
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>Add Food Item</span>
               </button>
             </div>
+
+            {showItemForm && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+                <MarketItemForm
+                  initial={editingItem}
+                  onSave={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                    fetchMarketItems()
+                  }}
+                  onCancel={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                  }}
+                  itemType="food"
+                />
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {marketItems
@@ -360,9 +370,20 @@ export function Admin() {
                   <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-white">{item.name}</h4>
-                      <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
-                        Food
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
+                          Food
+                        </span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          item.rarity === 'legendary' ? 'bg-yellow-600/20 text-yellow-400' :
+                          item.rarity === 'epic' ? 'bg-purple-600/20 text-purple-400' :
+                          item.rarity === 'rare' ? 'bg-blue-600/20 text-blue-400' :
+                          item.rarity === 'uncommon' ? 'bg-green-600/20 text-green-400' :
+                          'bg-gray-600/20 text-gray-400'
+                        }`}>
+                          {item.rarity}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-gray-300 text-sm mb-2">{item.description}</p>
                     
@@ -397,7 +418,10 @@ export function Admin() {
                       <span className="text-yellow-400 font-bold">{item.price} Gold</span>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setEditingAnimal(item)}
+                          onClick={() => {
+                            setEditingItem(item)
+                            setShowItemForm(true)
+                          }}
                           className="text-blue-400 hover:text-blue-300"
                         >
                           <Edit className="h-4 w-4" />
@@ -419,13 +443,18 @@ export function Admin() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Gold Packages</h2>
               <button
-                onClick={() => setNewMarketItem({
-                  type: 'gold',
-                  name: '',
-                  description: '',
-                  price: 0,
-                  effect_value: 0
-                })}
+                onClick={() => {
+                  setEditingItem({
+                    type: 'gold',
+                    name: '',
+                    description: '',
+                    price: 0,
+                    effect_value: 0, // This will represent the amount of gold
+                    is_active: true,
+                    rarity: 'common'
+                  })
+                  setShowItemForm(true)
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
@@ -433,25 +462,59 @@ export function Admin() {
               </button>
             </div>
 
+            {showItemForm && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+                <MarketItemForm
+                  initial={editingItem}
+                  onSave={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                    fetchMarketItems()
+                  }}
+                  onCancel={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                  }}
+                  itemType="gold"
+                />
+              </div>
+            )}
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {marketItems.filter(item => item.type === 'gold').map((item) => (
                 <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-white">{item.name}</h4>
                     <span className="px-2 py-1 rounded text-xs bg-yellow-600 text-white">
-                      Gold
+                      Gold Package
                     </span>
                   </div>
                   <p className="text-gray-300 text-sm mb-2">{item.description}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-yellow-400 font-bold">${item.price}</span>
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-yellow-400 font-bold text-lg">{item.effect_value.toLocaleString()} Gold</span>
+                      <span className="text-green-400">${item.price.toFixed(2)}</span>
+                    </div>
                     <div className="flex space-x-2">
-                      <button className="text-blue-400 hover:text-blue-300">
+                      <button
+                        onClick={() => {
+                          setEditingItem(item)
+                          setShowItemForm(true)
+                        }}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button className="text-red-400 hover:text-red-300">
                         <Trash2 className="h-4 w-4" />
                       </button>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <div className={`text-xs px-2 py-1 rounded inline-flex items-center ${
+                      item.is_active ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'
+                    }`}>
+                      {item.is_active ? '● Active' : '● Inactive'}
                     </div>
                   </div>
                 </div>
@@ -466,19 +529,34 @@ export function Admin() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Manage Items</h2>
               <button
-                onClick={() => setNewMarketItem({
-                  type: 'training',
-                  name: '',
-                  description: '',
-                  price: 0,
-                  effect_value: 0
-                })}
+                onClick={() => {
+                  setEditingItem(null)
+                  setShowItemForm(true)
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
                 <span>Add New Item</span>
               </button>
             </div>
+
+            {showItemForm && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+                <MarketItemForm
+                  initial={editingItem}
+                  onSave={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                    fetchMarketItems()
+                  }}
+                  onCancel={() => {
+                    setShowItemForm(false)
+                    setEditingItem(null)
+                  }}
+                  itemType="other"
+                />
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {marketItems
@@ -487,14 +565,25 @@ export function Admin() {
                   <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-white">{item.name}</h4>
-                      <span className={`px-2 py-1 rounded text-xs capitalize ${
-                        item.type === 'training' ? 'bg-blue-600' :
-                        item.type === 'boost' ? 'bg-purple-600' :
-                        item.type === 'cosmetic' ? 'bg-pink-600' :
-                        'bg-yellow-600'
-                      } text-white`}>
-                        {item.type}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs capitalize ${
+                          item.type === 'training' ? 'bg-blue-600' :
+                          item.type === 'boost' ? 'bg-purple-600' :
+                          item.type === 'cosmetic' ? 'bg-pink-600' :
+                          'bg-yellow-600'
+                        } text-white`}>
+                          {item.type}
+                        </span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          item.rarity === 'legendary' ? 'bg-yellow-600/20 text-yellow-400' :
+                          item.rarity === 'epic' ? 'bg-purple-600/20 text-purple-400' :
+                          item.rarity === 'rare' ? 'bg-blue-600/20 text-blue-400' :
+                          item.rarity === 'uncommon' ? 'bg-green-600/20 text-green-400' :
+                          'bg-gray-600/20 text-gray-400'
+                        }`}>
+                          {item.rarity}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-gray-300 text-sm mb-2">{item.description}</p>
                     
@@ -529,7 +618,10 @@ export function Admin() {
                       <span className="text-yellow-400 font-bold">{item.price} Gold</span>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setEditingAnimal(item)}
+                          onClick={() => {
+                            setEditingItem(item)
+                            setShowItemForm(true)
+                          }}
                           className="text-blue-400 hover:text-blue-300"
                         >
                           <Edit className="h-4 w-4" />
@@ -551,7 +643,6 @@ export function Admin() {
             className="fixed inset-0 bg-black/50 flex items-start z-50 overflow-y-auto"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
-                setShowCreateForm(false);
                 setEditingAnimal(null);
               }
             }}
@@ -579,7 +670,7 @@ export function Admin() {
                   fetchAllAnimals();
                 }}
                 onCancel={() => {
-                  setShowCreateForm(false);
+                  setEditingItem(null);
                   setEditingAnimal(null);
                 }}
               />
