@@ -48,7 +48,7 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [availableAnimations, setAvailableAnimations] = useState<THREE.AnimationClip[]>([]);
-  const [previewAnimation, setPreviewAnimation] = useState<string>('');
+  const [previewAnimation, setPreviewAnimation] = useState<string>(initial?.idle_anim || '');
 
   const onChange = (k: keyof MarketAnimal, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -108,9 +108,9 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
     console.log('handleAnimationSelect called with:', name, animations.map(a => a.name));
     setAvailableAnimations(animations);
     
-    // Set preview animation to the first one if not set
-    if (!previewAnimation && animations.length > 0) {
-      setPreviewAnimation(animations[0].name);
+    // Set preview animation if not already set
+    if (!previewAnimation && name) {
+      setPreviewAnimation(name);
     }
 
     // Set defaults for game animations if not set
@@ -270,73 +270,17 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
 
       <div className="h-full space-y-4">
         <div className="sticky top-4 space-y-4">
-          <h3 className="font-semibold mb-2 text-gray-200">Model Preview</h3>
-          <div className="rounded-lg overflow-hidden">
-            <AnimalModelPreview 
-              modelUrl={modelFile ? URL.createObjectURL(modelFile) : form.model_url} 
-              scale={form.model_scale} 
-              rotation={form.model_rotation}
-              animName={previewAnimation}
-              onAnimationSelect={handleAnimationSelect}
-            />
-          </div>
-
-          {availableAnimations.length > 0 && (
-            <div className="p-4 bg-gray-800 rounded-lg space-y-4">
-              <h4 className="font-semibold text-gray-200">Animation Controls</h4>
-              <div className="grid grid-cols-1 gap-4">
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-300">Preview Animation</span>
-                  <select 
-                    value={previewAnimation} 
-                    onChange={(e) => {
-                      console.log('Preview animation changed to:', e.target.value);
-                      setPreviewAnimation(e.target.value);
-                    }}
-                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
-                  >
-                    <option value="">Select preview animation</option>
-                    {availableAnimations.map(anim => (
-                      <option key={anim.name} value={anim.name}>{anim.name}</option>
-                    ))}
-                  </select>
-                </label>
-                
-                <div className="text-xs text-gray-400 bg-gray-900 p-2 rounded">
-                  Available: {availableAnimations.map(a => a.name).join(', ')}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-gray-300">Game Idle Animation</span>
-                    <select 
-                      value={form.idle_anim} 
-                      onChange={(e) => onChange('idle_anim', e.target.value)}
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
-                    >
-                      <option value="">Select idle animation</option>
-                      {availableAnimations.map(anim => (
-                        <option key={anim.name} value={anim.name}>{anim.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-gray-300">Game Run Animation</span>
-                    <select 
-                      value={form.run_anim} 
-                      onChange={(e) => onChange('run_anim', e.target.value)}
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
-                    >
-                      <option value="">Select run animation</option>
-                      {availableAnimations.map(anim => (
-                        <option key={anim.name} value={anim.name}>{anim.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
+          <h3 className="font-semibold text-gray-200">Model Preview</h3>
+          <AnimalModelPreview 
+            modelUrl={modelFile ? URL.createObjectURL(modelFile) : form.model_url} 
+            scale={form.model_scale} 
+            rotation={form.model_rotation}
+            animName={previewAnimation}
+            onAnimationSelect={(name, anims) => {
+              handleAnimationSelect(name, anims);
+              setPreviewAnimation(name);
+            }}
+          />
         </div>
       </div>
     </div>
