@@ -24,10 +24,18 @@ type MarketAnimal = {
   stock?: number | null;
 };
 
-export default function MarketAnimalForm({ initial }: { initial?: Partial<MarketAnimal> }) {
+export default function MarketAnimalForm({ 
+  initial,
+  onSave,
+  onCancel
+}: { 
+  initial?: Partial<MarketAnimal>;
+  onSave?: () => void;
+  onCancel?: () => void;
+}) {
   const [form, setForm] = useState<MarketAnimal>({
     name: initial?.name ?? '',
-    type: initial?.type ?? 'stag',
+    type: initial?.type ?? '',
     description: initial?.description ?? '',
     price: initial?.price ?? 100,
     speed: initial?.speed ?? 50,
@@ -97,7 +105,7 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
       }).eq('id', id!);
       if (upErr) throw upErr;
 
-      alert('Saved!');
+      onSave?.();
     } catch (err: any) {
       console.error(err);
       alert(err.message || 'Failed to save');
@@ -105,6 +113,10 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
       setSaving(false);
     }
   }
+
+  const handleCancel = () => {
+    onCancel?.();
+  };
 
   const handleAnimationSelect = (name: string, animations: THREE.AnimationClip[]) => {
     // Only process animations once per model URL

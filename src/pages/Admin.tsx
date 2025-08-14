@@ -1,22 +1,39 @@
 import React, { useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { Plus, Edit, Trash2, Save, X, Users, Package, Coins } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Users, Package, Coins } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useAdmin } from '../store/useAdmin'
 import { Animal3D } from '../components/Animal3D'
 import type { Animal } from '../game/types'
 import MarketAnimalForm from './admin/MarketAnimalForm'
 
-interface EditingAnimal extends Partial<Animal> {
-  id?: string
-  name: string
-  speed: number
-  acceleration: number
-  stamina: number
-  temper: number
-  level: number
-  price?: number
+interface EditingAnimal {
+  id?: string;
+  name: string;
+  type: string;
+  description?: string;
+  price: number;
+  speed: number;
+  acceleration: number;
+  stamina: number;
+  temper: number;
+  level: number;
+  model_url?: string;
+  model_scale?: number;
+  model_rotation?: number;
+  idle_anim?: string;
+  run_anim?: string;
+  thumbnail_url?: string;
+  is_active?: boolean;
+  stock?: number;
+  position?: { x: number; y: number; z: number };
+  velocity?: { x: number; y: number; z: number };
+  currentSpeed?: number;
+  currentStamina?: number;
+  lap?: number;
+  distance?: number;
+  finished?: boolean;
 }
 
 export function Admin() {
@@ -30,16 +47,21 @@ export function Admin() {
     fetchAllAnimals, 
     fetchAllUsers,
     fetchMarketItems,
-    createMarketAnimal, 
-    updateAnimal, 
-    deleteAnimal,
-    createMarketItem
-  } = useAdmin()
-  
-  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'market'>('animals')
-  const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
-  const [showCreateForm, setShowCreateForm] = useState(false)
+    deleteAnimal
+  } = useAdmin() as unknown as {
+    animals: Animal[];
+    users: any[];
+    marketItems: EditingAnimal[];
+    loading: boolean;
+    error: string | null;
+    fetchAllAnimals: () => Promise<void>;
+    fetchAllUsers: () => Promise<void>;
+    fetchMarketItems: () => Promise<void>;
+    deleteAnimal: (id: string) => Promise<void>;
+  }
+
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [newMarketItem, setNewMarketItem] = useState({
     type: 'food',
     name: '',
@@ -47,6 +69,23 @@ export function Admin() {
     price: 0,
     effect_value: 0
   })
+  
+  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'market' | 'food' | 'gold'>('animals')
+  const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (editingAnimal) {
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setShowCreateForm(false);
+          setEditingAnimal(null);
+        }
+      };
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [editingAnimal]);
 
   useEffect(() => {
     if (user && profile?.is_admin) {
@@ -56,39 +95,10 @@ export function Admin() {
     }
   }, [user, profile, fetchAllAnimals, fetchAllUsers, fetchMarketItems])
 
-  const handleSaveAnimal = async () => {
-    if (!editingAnimal) return
-
-    try {
-      if (editingAnimal.id) {
-        await updateAnimal(editingAnimal.id, editingAnimal)
-      } else {
-        await createMarketAnimal(editingAnimal)
-      }
-      setEditingAnimal(null)
-      setShowCreateForm(false)
-    } catch (error) {
-      console.error('Error saving animal:', error)
-    }
-  }
-
   const handleDeleteAnimal = async (animalId: string) => {
     if (confirm('Are you sure you want to delete this animal?')) {
       await deleteAnimal(animalId)
     }
-  }
-
-  const handleCreateMarketItem = async () => {
-    if (!newMarketItem.name || !newMarketItem.price) return
-    
-    await createMarketItem(newMarketItem)
-    setNewMarketItem({
-      type: 'food',
-      name: '',
-      description: '',
-      price: 0,
-      effect_value: 0
-    })
   }
 
   if (!user || !profile?.is_admin) {
@@ -121,6 +131,28 @@ export function Admin() {
                 Animals
               </button>
               <button
+                onClick={() => setActiveTab('food')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'food'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <span className="h-4 w-4 inline mr-2">🍖</span>
+                Food
+              </button>
+              <button
+                onClick={() => setActiveTab('gold')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'gold'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <span className="h-4 w-4 inline mr-2">💰</span>
+                Gold
+              </button>
+              <button
                 onClick={() => setActiveTab('users')}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   activeTab === 'users'
@@ -143,25 +175,6 @@ export function Admin() {
                 Market
               </button>
             </div>
-            <button
-              onClick={() => {
-                setActiveTab('market');
-                setEditingAnimal({
-                  name: '',
-                  type: 'stag',
-                  speed: 50,
-                  acceleration: 50,
-                  stamina: 50,
-                  temper: 50,
-                  level: 1,
-                  price: 100
-                });
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Create Market Animal</span>
-            </button>
           </div>
         </div>
 
@@ -171,11 +184,23 @@ export function Admin() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Manage Animals</h2>
               <button
-                onClick={() => setActiveTab('market')}
+                onClick={() => {
+                  setEditingAnimal({
+                    name: '',
+                    type: '',
+                    speed: 50,
+                    acceleration: 50,
+                    stamina: 50,
+                    temper: 50,
+                    level: 1,
+                    price: 100
+                  });
+                  setShowCreateForm(true);
+                }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
-                <span>Create Animal</span>
+                <span>Create Market Animal</span>
               </button>
             </div>
 
@@ -203,7 +228,10 @@ export function Admin() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              setEditingAnimal(animal)
+                              setEditingAnimal({
+                                ...animal,
+                                price: 100 // Default price
+                              })
                               setShowCreateForm(true)
                             }}
                             className="text-blue-400 hover:text-blue-300"
@@ -309,18 +337,105 @@ export function Admin() {
           </div>
         )}
 
+        {/* Food Tab */}
+        {activeTab === 'food' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Food Items</h2>
+              <button
+                onClick={() => setNewMarketItem({
+                  type: 'food',
+                  name: '',
+                  description: '',
+                  price: 0,
+                  effect_value: 0
+                })}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Food Item</span>
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {marketItems.filter(item => item.type === 'food').map((item) => (
+                <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-white">{item.name}</h4>
+                    <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
+                      Food
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-2">{item.description}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-yellow-400 font-bold">{item.price} Gold</span>
+                    <div className="flex space-x-2">
+                      <button className="text-blue-400 hover:text-blue-300">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button className="text-red-400 hover:text-red-300">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Gold Tab */}
+        {activeTab === 'gold' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white">Gold Packages</h2>
+              <button
+                onClick={() => setNewMarketItem({
+                  type: 'gold',
+                  name: '',
+                  description: '',
+                  price: 0,
+                  effect_value: 0
+                })}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Gold Package</span>
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {marketItems.filter(item => item.type === 'gold').map((item) => (
+                <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-white">{item.name}</h4>
+                    <span className="px-2 py-1 rounded text-xs bg-yellow-600 text-white">
+                      Gold
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-2">{item.description}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-yellow-400 font-bold">${item.price}</span>
+                    <div className="flex space-x-2">
+                      <button className="text-blue-400 hover:text-blue-300">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button className="text-red-400 hover:text-red-300">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Market Tab */}
         {activeTab === 'market' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Market Management</h2>
-              <button
-                onClick={() => setEditingAnimal({ name: '', type: 'stag', speed: 50, acceleration: 50, stamina: 50, temper: 50, level: 1, price: 100 })}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Create Market Animal</span>
-              </button>
             </div>
 
             {editingAnimal && (
@@ -346,7 +461,14 @@ export function Admin() {
                       <h4 className="font-bold text-white">{item.name}</h4>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setEditingAnimal(item)}
+                          onClick={() => setEditingAnimal({
+                            ...item,
+                            speed: item.speed || 50,
+                            acceleration: item.acceleration || 50,
+                            stamina: item.stamina || 50,
+                            temper: item.temper || 50,
+                            level: item.level || 1,
+                          })}
                           className="text-blue-400 hover:text-blue-300"
                         >
                           <Edit className="h-4 w-4" />
@@ -395,10 +517,18 @@ export function Admin() {
           </div>
         )}
 
-        {/* Create/Edit Animal Modal */}
-        {showCreateForm && editingAnimal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-xl p-6 border border-cyan-500/30 max-w-md w-full mx-4">
+        {/* Create/Edit Animal Form */}
+        {editingAnimal && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-start z-50 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowCreateForm(false);
+                setEditingAnimal(null);
+              }
+            }}
+          >
+            <div className="bg-gray-800/95 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 w-[98vw] mx-auto mt-16">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">
                   {editingAnimal.id ? 'Edit Animal' : 'Create Animal'}
@@ -414,104 +544,17 @@ export function Admin() {
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Animal name"
-                  value={editingAnimal.name}
-                  onChange={(e) => setEditingAnimal({...editingAnimal, name: e.target.value})}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Speed</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={editingAnimal.speed}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, speed: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Acceleration</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={editingAnimal.acceleration}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, acceleration: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Stamina</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={editingAnimal.stamina}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, stamina: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Temper</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={editingAnimal.temper}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, temper: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Level</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={editingAnimal.level}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, level: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Price (Gold)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={editingAnimal.price || 100}
-                      onChange={(e) => setEditingAnimal({...editingAnimal, price: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleSaveAnimal}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium transition-all flex items-center justify-center space-x-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>Save</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateForm(false)
-                      setEditingAnimal(null)
-                    }}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg font-medium transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+              <MarketAnimalForm 
+                initial={editingAnimal}
+                onSave={() => {
+                  setEditingAnimal(null);
+                  fetchAllAnimals();
+                }}
+                onCancel={() => {
+                  setShowCreateForm(false);
+                  setEditingAnimal(null);
+                }}
+              />
             </div>
           </div>
         )}
