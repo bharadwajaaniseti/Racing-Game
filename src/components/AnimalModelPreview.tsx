@@ -105,7 +105,6 @@ function Model({
     const clip = pickNeutralClip(animations, animName);
     if (!clip) return;
     playExclusive(clip.name);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animName, animations]);
 
   // Exclusive playback: stop everything else, play only target
@@ -115,6 +114,7 @@ function Model({
     if (lastClipName.current === name) return; // already playing
 
     lastClipName.current = name;
+    console.log('Playing animation:', name); // Debug log
 
     // Hard stop all actions to avoid additive leftovers
     m.stopAllAction();
@@ -143,6 +143,7 @@ function Model({
     target.setEffectiveWeight(1);
     target.setEffectiveTimeScale(1);
     target.play();
+    console.log('Animation started:', name); // Debug log
   }
 
   useFrame((_, dt) => mixer.current?.update(dt));

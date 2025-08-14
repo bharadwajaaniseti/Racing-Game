@@ -105,28 +105,20 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
 
   const handleAnimationSelect = (name: string, animations: THREE.AnimationClip[]) => {
     setAvailableAnimations(animations);
-    
-    // Set default animations if they're not already set
-    if (!form.idle_anim) {
+
+    // Only set defaults if we don't have them yet
+    if (!form.idle_anim && animations.length > 0) {
       const defaultIdle = animations.find(a => 
-        a.name.toLowerCase().includes('idle') || 
-        a.name.toLowerCase().includes('stand')
-      );
-      if (defaultIdle) onChange('idle_anim', defaultIdle.name);
+        /idle|stand|breath/i.test(a.name)
+      ) || animations[0];
+      onChange('idle_anim', defaultIdle.name);
     }
-    
-    if (!form.run_anim) {
+
+    if (!form.run_anim && animations.length > 0) {
       const defaultRun = animations.find(a => 
-        a.name.toLowerCase().includes('run') || 
-        a.name.toLowerCase().includes('gallop')
-      );
-      if (defaultRun) onChange('run_anim', defaultRun.name);
-    }
-    
-    // Set current preview animation to idle animation if available
-    if (!name && form.idle_anim) {
-      const idleAnim = animations.find(a => a.name === form.idle_anim);
-      if (idleAnim) onChange('idle_anim', idleAnim.name);
+        /run|walk|gallop|move/i.test(a.name)
+      ) || animations[0];
+      onChange('run_anim', defaultRun.name);
     }
   };
 
@@ -277,50 +269,55 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
               modelUrl={modelFile ? URL.createObjectURL(modelFile) : form.model_url} 
               scale={form.model_scale} 
               rotation={form.model_rotation}
-              animName={form.idle_anim}
+              animName={form.idle_anim || ''}
               onAnimationSelect={handleAnimationSelect}
             />
           </div>
 
           {availableAnimations.length > 0 && (
             <div className="p-4 bg-gray-800 rounded-lg space-y-4">
-              <h4 className="font-semibold text-gray-200">Available Animations</h4>
+              <h4 className="font-semibold text-gray-200">Animation Controls</h4>
               <div className="grid grid-cols-1 gap-4">
                 <label className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-300">Current Animation</span>
+                  <span className="text-sm font-medium text-gray-300">Preview Animation</span>
                   <select 
                     value={form.idle_anim} 
                     onChange={(e) => onChange('idle_anim', e.target.value)}
                     className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                   >
-                    <option value="">Select animation</option>
+                    <option value="">Select preview animation</option>
                     {availableAnimations.map(anim => (
                       <option key={anim.name} value={anim.name}>{anim.name}</option>
                     ))}
                   </select>
                 </label>
+                
+                <div className="text-xs text-gray-400 bg-gray-900 p-2 rounded">
+                  Available: {availableAnimations.map(a => a.name).join(', ')}
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-gray-300">Default Idle</span>
+                    <span className="text-sm font-medium text-gray-300">Game Idle Animation</span>
                     <select 
                       value={form.idle_anim} 
                       onChange={(e) => onChange('idle_anim', e.target.value)}
                       className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                     >
-                      <option value="">Select animation</option>
+                      <option value="">Select idle animation</option>
                       {availableAnimations.map(anim => (
                         <option key={anim.name} value={anim.name}>{anim.name}</option>
                       ))}
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-gray-300">Default Run</span>
+                    <span className="text-sm font-medium text-gray-300">Game Run Animation</span>
                     <select 
                       value={form.run_anim} 
                       onChange={(e) => onChange('run_anim', e.target.value)}
                       className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                     >
-                      <option value="">Select animation</option>
+                      <option value="">Select run animation</option>
                       {availableAnimations.map(anim => (
                         <option key={anim.name} value={anim.name}>{anim.name}</option>
                       ))}
