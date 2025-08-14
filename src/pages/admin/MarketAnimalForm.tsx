@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { uploadAnimalModel, uploadThumbnail } from '../../lib/uploadModel';
 import AnimalModelPreview from '../../components/AnimalModelPreview';
@@ -47,8 +47,10 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
   const [modelFile, setModelFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [availableAnimations, setAvailableAnimations] = useState<THREE.AnimationClip[]>([]);
-  const [previewAnimation, setPreviewAnimation] = useState<string>(initial?.idle_anim || '');
+  const [animList, setAnimList] = useState<string[]>([]);
+  const [currentAnim, setCurrentAnim] = useState<string | undefined>(initial?.idle_anim || undefined);
+  const initDone = useRef(false);
+  const lastModelUrl = useRef<string | undefined>(undefined);
 
   const onChange = (k: keyof MarketAnimal, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -105,27 +107,36 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
   }
 
   const handleAnimationSelect = (name: string, animations: THREE.AnimationClip[]) => {
-    console.log('handleAnimationSelect called with:', name, animations.map(a => a.name));
-    setAvailableAnimations(animations);
-    
-    // Set preview animation if not already set
-    if (!previewAnimation && name) {
-      setPreviewAnimation(name);
-    }
+    // Only process animations once per model URL
+    const currentModelUrl = modelFile ? URL.createObjectURL(modelFile) : form.model_url;
+    if (lastModelUrl.current === currentModelUrl) return;
+    lastModelUrl.current = currentModelUrl;
 
-    // Set defaults for game animations if not set
-    if (!form.idle_anim && animations.length > 0) {
+    // Produce a nice, deduped list (strip Armature prefixes)
+    const names = Array.from(new Set(animations.map(a => a.name.replace(/^.*\|/, ''))));
+    setAnimList(names);
+
+    // Set current animation only once per model
+    if (!initDone.current) {
+      setCurrentAnim(name);
+      initDone.current = true;
+
+      // Set defaults for game animations
       const defaultIdle = animations.find(a => 
-        /idle|stand|breath/i.test(a.name)
+        /^idle(_\d+)?$/i.test(a.name.replace(/^.*\|/, '')) && 
+        !/hit|react|death|attack/i.test(a.name)
+      ) || animations.find(a => 
+        /(idle|breath|stand)/i.test(a.name.replace(/^.*\|/, '')) &&
+        !/hit|react|death|attack/i.test(a.name)
       ) || animations[0];
-      onChange('idle_anim', defaultIdle.name);
-    }
 
-    if (!form.run_anim && animations.length > 0) {
       const defaultRun = animations.find(a => 
-        /run|walk|gallop|move/i.test(a.name)
+        /run|walk|gallop/i.test(a.name.replace(/^.*\|/, '')) &&
+        !/hit|react|death|attack/i.test(a.name)
       ) || animations[0];
-      onChange('run_anim', defaultRun.name);
+
+      if (defaultIdle) onChange('idle_anim', defaultIdle.name);
+      if (defaultRun) onChange('run_anim', defaultRun.name);
     }
   };
 
@@ -212,7 +223,7 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
                   className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"/>
               </label>
               
-              {availableAnimations.length > 0 && (
+              {animList.length > 0 && (
                 <>
                   <label className="flex flex-col gap-1">
                     <span className="text-sm font-medium text-gray-300">Idle Animation</span>
@@ -222,8 +233,8 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
                       className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                     >
                       <option value="">Select animation</option>
-                      {availableAnimations.map(anim => (
-                        <option key={anim.name} value={anim.name}>{anim.name}</option>
+                      {animList.map(name => (
+                        <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
                   </label>
@@ -235,8 +246,8 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
                       className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                     >
                       <option value="">Select animation</option>
-                      {availableAnimations.map(anim => (
-                        <option key={anim.name} value={anim.name}>{anim.name}</option>
+                      {animList.map(name => (
+                        <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
                   </label>
@@ -275,11 +286,8 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
             modelUrl={modelFile ? URL.createObjectURL(modelFile) : form.model_url} 
             scale={form.model_scale} 
             rotation={form.model_rotation}
-            animName={previewAnimation}
-            onAnimationSelect={(name, anims) => {
-              handleAnimationSelect(name, anims);
-              setPreviewAnimation(name);
-            }}
+            animName={currentAnim}
+            onAnimationSelect={handleAnimationSelect}
           />
         </div>
       </div>

@@ -39,81 +39,79 @@ function GLBAnimal({
   const actions = useRef<Record<string, THREE.AnimationAction>>({});
   const lastClip = useRef<string | null>(null);
 
-  // Build actions map when GLB loads
+  // Initialize mixer and actions once when animations are available
   useEffect(() => {
-    if (!animations?.length) return;
-
+    if (!animations?.length || mixer.current) return;
+    
     mixer.current = new THREE.AnimationMixer(scene);
     actions.current = {};
+    
     for (const clip of animations) {
-      const act = mixer.current.clipAction(clip);
-      act.enabled = false;
-      act.setEffectiveWeight(0);
-      actions.current[clip.name] = act;
+      const action = mixer.current.clipAction(clip);
+      action.setEffectiveTimeScale(1);
+      action.setEffectiveWeight(0);
+      action.paused = false;
+      actions.current[clip.name] = action;
     }
-
-    // Start with best matching clip
-    playExclusive(pickClipName());
 
     return () => {
       mixer.current?.stopAllAction();
       mixer.current?.uncacheRoot(scene);
       mixer.current = null;
       actions.current = {};
-      lastClip.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, animations]);
 
-  function findCaseInsensitive(target: string) {
-    const names = Object.keys(actions.current);
-    return names.find((n) => n.toLowerCase() === target.toLowerCase());
-  }
-
   // Decide which clip to play based on speed
-  function pickClipName(): string | undefined {
+  function pickClipName(): string {
     const speed = animal.currentSpeed ?? 0;
-    if (speed > 6) {
-      const r = findCaseInsensitive(runAnim);
-      if (r) return r;
+    const names = Object.keys(actions.current);
+    if (names.length === 0) return ''; // Return empty string if no animations
+
+    const has = (n: string) => !!names.find((x) => x.toLowerCase() === n.toLowerCase());
+    const find = (n: string) => names.find((x) => x.toLowerCase() === n.toLowerCase());
+
+    if (speed > 6 && has(runAnim)) {
+      return find(runAnim) || names[0];
     }
-    if (speed > 0.5) {
-      const w = findCaseInsensitive(walkAnim);
-      if (w) return w;
+    if (speed > 0.5 && has(walkAnim)) {
+      return find(walkAnim) || names[0];
     }
-    return findCaseInsensitive(idleAnim) ?? Object.keys(actions.current)[0];
+    if (has(idleAnim)) {
+      return find(idleAnim) || names[0];
+    }
+    return names[0];
   }
 
-  function playExclusive(name?: string) {
-    if (!name || !mixer.current) return;
-    if (lastClip.current === name) return;
+  function playExclusive(name: string) {
+    if (!mixer.current || !actions.current[name]) return;
+    if (lastClip.current === name) return; // Prevent unnecessary transitions
+
+    const fadeTime = 0.3; // Slightly longer fade for smoother transitions
+    const currentAction = lastClip.current ? actions.current[lastClip.current] : null;
+    const nextAction = actions.current[name];
+
+    if (currentAction && currentAction.isRunning()) {
+      currentAction.fadeOut(fadeTime);
+    }
+
+    nextAction.reset()
+      .setLoop(THREE.LoopRepeat, Infinity)
+      .fadeIn(fadeTime)
+      .play();
+
     lastClip.current = name;
-
-    // Stop & disable every other action to avoid additive leftovers
-    mixer.current.stopAllAction();
-    for (const a of Object.values(actions.current)) {
-      a.enabled = false;
-      a.reset();
-      a.setEffectiveWeight(0);
-      a.setEffectiveTimeScale(1);
-      a.paused = false;
-    }
-
-    const target = actions.current[name];
-    if (!target) return;
-    target.setLoop(THREE.LoopRepeat, Infinity);
-    target.clampWhenFinished = false;
-    target.enabled = true;
-    target.reset();
-    target.setEffectiveWeight(1);
-    target.play();
   }
 
-  // Update animation choice when speed changes
+  // Only switch animation when the picked animation name changes
+  const pickedClipName = pickClipName();
   useEffect(() => {
-    playExclusive(pickClipName());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animal.currentSpeed]);
+    if (Object.keys(actions.current).length === 0) return; // Wait for actions to be ready
+    if (!pickedClipName) return;
+    if (lastClip.current !== pickedClipName) {
+      playExclusive(pickedClipName);
+    }
+  }, [pickedClipName]);
 
   // Drive transform from physics each frame
   useFrame(() => {
@@ -128,7 +126,11 @@ function GLBAnimal({
   });
 
   // Advance mixer
-  useFrame((_, dt) => mixer.current?.update(dt));
+  useFrame((_, dt) => {
+    if (mixer.current) {
+      mixer.current.update(dt);
+    }
+  });
 
   return (
     <group ref={groupRef} scale={scale}>
@@ -180,7 +182,9 @@ function BlockyAnimal({
         const off = (i % 2) * Math.PI;
         leg.rotation.x = Math.sin(t * s * 8 + off) * 0.3;
       });
-      bodyRef.current!.position.y = Math.sin(t * s * 16) * 0.1;
+      if (bodyRef.current) {
+        bodyRef.current.position.y = Math.sin(t * s * 16) * 0.1;
+      }
     }
   });
 
