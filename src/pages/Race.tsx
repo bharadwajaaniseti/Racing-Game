@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Environment, ContactShadows } from '@react-three/drei'
 import { Play, Square, RotateCcw } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useGarage } from '../store/useGarage'
@@ -215,8 +215,30 @@ export function Race() {
               maxDistance={150}
             />
             
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1} />
+            {/* Consistent lighting with ModelViewer */}
+            <color attach="background" args={['#2a3a4a']} />
+            <Environment preset="sunset" background blur={0.5} />
+            <ambientLight intensity={0.8} />
+            <directionalLight
+              position={[-5, 5, -5]}
+              intensity={0.5}
+              castShadow
+              shadow-mapSize={[1024, 1024]}
+            />
+            <directionalLight
+              position={[5, 5, 5]}
+              intensity={1}
+              castShadow
+              shadow-mapSize={[1024, 1024]}
+            />
+            <ContactShadows
+              position={[0, -0.5, 0]}
+              opacity={0.5}
+              blur={3}
+              far={10}
+              resolution={1024}
+              frames={1}
+            />
             
             <Track3D radius={50} />
             

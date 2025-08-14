@@ -7,9 +7,9 @@ export function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [step, setStep] = useState<'signin' | 'create-profile'>('signin')
+  const [step, setStep] = useState<'signin' | 'signup' | 'create-profile'>('signin')
   const [message, setMessage] = useState('')
-  const { user, profile, loading, error, signIn, createProfile } = useUser()
+  const { user, profile, loading, error, signIn, signUp, createProfile } = useUser()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -27,6 +27,21 @@ export function Auth() {
     await signIn(email, password)
     if (!error) {
       setMessage('Sign in successful!')
+    }
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) return
+
+    try {
+      await signUp(email, password)
+      if (!error) {
+        setMessage('Sign up successful! Please check your email for verification.')
+        setStep('signin')
+      }
+    } catch (err) {
+      // Error is already handled by the store
     }
   }
 
@@ -101,7 +116,7 @@ export function Auth() {
             <p className="text-gray-400">Sign in with your email to get started</p>
           </div>
 
-          <form onSubmit={handleSignIn} className="space-y-4">
+          <form onSubmit={step === 'signin' ? handleSignIn : handleSignUp} className="space-y-4">
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -153,14 +168,42 @@ export function Auth() {
               {loading ? (
                 <Loader className="h-5 w-5 animate-spin" />
               ) : (
-                <span>Sign In</span>
+                <span>{step === 'signin' ? 'Sign In' : 'Sign Up'}</span>
               )}
             </button>
           </form>
 
-          <p className="text-center text-gray-400 text-sm mt-6">
-            Sign in with your email and password to access your account.
-          </p>
+          <div className="mt-6 text-center">
+            {step === 'signin' ? (
+              <p className="text-gray-400 text-sm">
+                Don't have an account?{' '}
+                <button
+                  onClick={() => {
+                    setStep('signup')
+                    setError(null)
+                    setMessage('')
+                  }}
+                  className="text-cyan-400 hover:text-cyan-300 font-medium"
+                >
+                  Sign up here
+                </button>
+              </p>
+            ) : (
+              <p className="text-gray-400 text-sm">
+                Already have an account?{' '}
+                <button
+                  onClick={() => {
+                    setStep('signin')
+                    setError(null)
+                    setMessage('')
+                  }}
+                  className="text-cyan-400 hover:text-cyan-300 font-medium"
+                >
+                  Sign in here
+                </button>
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

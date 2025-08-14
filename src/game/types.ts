@@ -9,6 +9,7 @@ export interface Animal {
   temper: number
   experience: number
   level: number
+  price?: number
   model_url?: string
   model_scale?: number
   model_rotation?: number

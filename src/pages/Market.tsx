@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
 import { supabase } from '../lib/supabase'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { ShoppingCart, Coins, Package, Heart, Zap, Star } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useMarket } from '../store/useMarket'
-import { Animal3D } from '../components/Animal3D'
+import { ModelViewer } from '../components/ModelViewer'
 import type { Animal } from '../game/types'
 
 export function Market() {
@@ -211,29 +209,26 @@ export function Market() {
             {/* 3D Preview */}
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
               <h3 className="text-xl font-bold text-white mb-4">3D Preview</h3>
-              <div className="h-80 bg-gray-900/50 rounded-lg overflow-hidden mb-4">
-                <Canvas>
-                  <PerspectiveCamera makeDefault position={[0, 5, 10]} />
-                  <OrbitControls enablePan={false} enableZoom={true} enableRotate={true} />
-                  <ambientLight intensity={0.6} />
-                  <directionalLight position={[10, 10, 5]} intensity={1} />
-                  
-                  {selectedAnimal && (
-                    <Animal3D 
-                      animal={{
-                        ...selectedAnimal,
-                        position: { x: 0, y: 0, z: 0 },
-                        velocity: { x: 0, y: 0, z: 0 },
-                        currentSpeed: 0,
-                        currentStamina: selectedAnimal.stamina,
-                        lap: 0,
-                        distance: 0,
-                        finished: false
-                      }}
-                      color="#4F46E5"
-                    />
-                  )}
-                </Canvas>
+              <div className="h-80 mb-4">
+                <ModelViewer 
+                  animal={selectedAnimal ? {
+                    ...selectedAnimal,
+                    position: { x: 0, y: 0, z: 0 },
+                    velocity: { x: 0, y: 0, z: 0 },
+                    currentSpeed: 0,
+                    currentStamina: selectedAnimal.stamina,
+                    lap: 0,
+                    distance: 0,
+                    finished: false
+                  } : undefined}
+                  modelUrl={selectedAnimal?.model_url}
+                  scale={selectedAnimal?.model_scale}
+                  rotation={selectedAnimal?.model_rotation}
+                  idleAnim={selectedAnimal?.idle_anim}
+                  runAnim={selectedAnimal?.run_anim}
+                  color="#4F46E5"
+                  className="h-80"
+                />
               </div>
               
               {selectedAnimal ? (

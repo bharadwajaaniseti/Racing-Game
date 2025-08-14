@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, X, Users, Package, Coins } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useAdmin } from '../store/useAdmin'
-import { Animal3D } from '../components/Animal3D'
+import { ModelViewer } from '../components/ModelViewer'
 import type { Animal } from '../game/types'
 import MarketAnimalForm from './admin/MarketAnimalForm'
 
@@ -257,36 +255,25 @@ export function Admin() {
               {/* 3D Preview */}
               <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
                 <h3 className="text-xl font-bold text-white mb-4">3D Preview</h3>
-                <div className="h-80 bg-gray-900/50 rounded-lg overflow-hidden">
-                  <Canvas>
-                    <PerspectiveCamera makeDefault position={[0, 5, 10]} />
-                    <OrbitControls enablePan={false} enableZoom={true} enableRotate={true} />
-                    <ambientLight intensity={0.6} />
-                    <directionalLight position={[10, 10, 5]} intensity={1} />
-                    
-                    {selectedAnimal && (
-                      <Animal3D 
-                        animal={{
-                          ...selectedAnimal,
-                          position: { x: 0, y: 0, z: 0 },
-                          velocity: { x: 0, y: 0, z: 0 },
-                          currentSpeed: 0,
-                          currentStamina: selectedAnimal.stamina,
-                          lap: 0,
-                          distance: 0,
-                          finished: false
-                        }}
-                        color="#4F46E5"
-                        modelUrl={selectedAnimal.model_url}
-                        scale={selectedAnimal.model_scale || 1}
-                        yawOffsetDeg={selectedAnimal.model_rotation || 0}
-                        idleAnim={selectedAnimal.idle_anim}
-                        walkAnim="Walk"
-                        runAnim={selectedAnimal.run_anim}
-                      />
-                    )}
-                  </Canvas>
-                </div>
+                <ModelViewer
+                  animal={selectedAnimal ? {
+                    ...selectedAnimal,
+                    position: { x: 0, y: 0, z: 0 },
+                    velocity: { x: 0, y: 0, z: 0 },
+                    currentSpeed: 0,
+                    currentStamina: selectedAnimal.stamina,
+                    lap: 0,
+                    distance: 0,
+                    finished: false
+                  } : undefined}
+                  modelUrl={selectedAnimal?.model_url}
+                  scale={selectedAnimal?.model_scale}
+                  rotation={selectedAnimal?.model_rotation}
+                  idleAnim={selectedAnimal?.idle_anim}
+                  runAnim={selectedAnimal?.run_anim}
+                  color="#4F46E5"
+                  className="h-80"
+                />
                 
                 {selectedAnimal && (
                   <div className="mt-4 space-y-2">

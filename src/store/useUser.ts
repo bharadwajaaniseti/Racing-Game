@@ -8,6 +8,7 @@ interface UserState {
   loading: boolean
   error: string | null
   signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   fetchProfile: () => Promise<void>
   createProfile: (username: string) => Promise<void>
@@ -38,6 +39,24 @@ export const useUser = create<UserState>((set, get) => ({
     } catch (error) {
       console.error('Sign in caught error:', error)
       set({ error: (error as Error).message, loading: false })
+    }
+  },
+
+  signUp: async (email: string, password: string) => {
+    set({ loading: true, error: null })
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+      })
+      
+      if (error) throw error
+      
+      set({ loading: false })
+      return data
+    } catch (error) {
+      set({ error: (error as Error).message, loading: false })
+      throw error
     }
   },
 
