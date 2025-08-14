@@ -24,7 +24,7 @@ function isNonLoopClip(name: string) {
 }
 function pickNeutralClip(anims: THREE.AnimationClip[], requested?: string) {
   if (!anims?.length) return undefined;
-  if (requested && !isNonLoopClip(requested)) {
+  if (requested) {
     const exact = anims.find((a) => a.name === requested);
     if (exact) return exact;
   }
@@ -64,89 +64,99 @@ function Model({
   onLoaded,
 }: ModelProps) {
   const { scene, animations } = useGLTF(url);
-  const mixer = React.useRef<THREE.AnimationMixer>();
+  const mixer = React.useRef<THREE.AnimationMixer | null>(null);
   const actions = React.useRef<Record<string, THREE.AnimationAction>>({});
-  const lastClipName = React.useRef<string | null>(null);
+  const currentAction = React.useRef<THREE.AnimationAction | null>(null);
 
   // Build actions map once per GLB
   React.useEffect(() => {
+    console.log('Model loaded with animations:', animations?.map(a => a.name));
     onAnimationsLoaded?.(animations || []);
+    
     if (!animations?.length) {
       onLoaded?.();
       return;
     }
 
-    mixer.current = new THREE.AnimationMixer(scene);
-    actions.current = {};
-    for (const clip of animations) {
-      const act = mixer.current.clipAction(clip);
-      act.enabled = false;
-      act.setEffectiveWeight(0);
-      actions.current[clip.name] = act;
+    // Clean up previous mixer
+    if (mixer.current) {
+      mixer.current.stopAllAction();
+      mixer.current.uncacheRoot(mixer.current.getRoot());
     }
 
-    // Start with a neutral clip (exclusive)
-    const initial = pickNeutralClip(animations, animName) ?? animations[0];
-    playExclusive(initial.name);
+    mixer.current = new THREE.AnimationMixer(scene);
+    actions.current = {};
+    
+    for (const clip of animations) {
+      const action = mixer.current.clipAction(clip);
+      actions.current[clip.name] = action;
+    }
+
+    // Start with initial animation
+    const initialClip = pickNeutralClip(animations, animName);
+    if (initialClip) {
+      playAnimation(initialClip.name);
+    }
 
     onLoaded?.();
 
     // cleanup
     return () => {
-      mixer.current?.stopAllAction();
-      mixer.current?.uncacheRoot(scene);
+      if (mixer.current) {
+        mixer.current.stopAllAction();
+        mixer.current.uncacheRoot(scene);
+        mixer.current = null;
+      }
+      actions.current = {};
+      currentAction.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animations, scene]);
+  }, [animations, scene, onAnimationsLoaded, onLoaded]);
 
-  // Switch clip exclusively when animName changes
+  // Switch animation when animName changes
   React.useEffect(() => {
-    if (!mixer.current || !animations?.length) return;
-    const clip = pickNeutralClip(animations, animName);
-    if (!clip) return;
-    playExclusive(clip.name);
+    if (!mixer.current || !animations?.length || !animName) return;
+    
+    console.log('Switching to animation:', animName);
+    playAnimation(animName);
   }, [animName, animations]);
 
-  // Exclusive playback: stop everything else, play only target
-  function playExclusive(name: string) {
-    const m = mixer.current;
-    if (!m) return;
-    if (lastClipName.current === name) return; // already playing
-
-    lastClipName.current = name;
-    console.log('Playing animation:', name); // Debug log
-
-    // Hard stop all actions to avoid additive leftovers
-    m.stopAllAction();
-    for (const a of Object.values(actions.current)) {
-      a.enabled = false;
-      a.reset();
-      a.setEffectiveWeight(0);
-      a.setEffectiveTimeScale(1);
-      a.paused = false;
+  function playAnimation(name: string) {
+    if (!mixer.current || !actions.current[name]) {
+      console.log('Cannot play animation:', name, 'Available:', Object.keys(actions.current));
+      return;
     }
 
-    const target = actions.current[name];
-    if (!target) return;
+    console.log('Playing animation:', name);
 
-    const clipName = target.getClip().name;
+    // Stop current action
+    if (currentAction.current) {
+      currentAction.current.fadeOut(0.2);
+    }
+
+    // Start new action
+    const action = actions.current[name];
+    const clipName = action.getClip().name;
+    
     if (isNonLoopClip(clipName)) {
-      target.setLoop(THREE.LoopOnce, 0);
-      target.clampWhenFinished = true;
+      action.setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
     } else {
-      target.setLoop(THREE.LoopRepeat, Infinity);
-      target.clampWhenFinished = false;
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
     }
 
-    target.enabled = true;
-    target.reset();
-    target.setEffectiveWeight(1);
-    target.setEffectiveTimeScale(1);
-    target.play();
-    console.log('Animation started:', name); // Debug log
+    action.reset();
+    action.fadeIn(0.2);
+    action.play();
+    
+    currentAction.current = action;
   }
 
-  useFrame((_, dt) => mixer.current?.update(dt));
+  useFrame((_, dt) => {
+    if (mixer.current) {
+      mixer.current.update(dt);
+    }
+  });
 
   return (
     // Rotate a wrapper (not the GLB) so bones stay happy
@@ -170,7 +180,7 @@ function Model({
 type PreviewProps = {
   modelUrl?: string;
   scale?: number;
-  rotation?: number; // UI “Model Rotation (Y°)”
+  rotation?: number; // UI "Model Rotation (Y°)"
   animName?: string;
   onAnimationSelect?: (name: string, anims: THREE.AnimationClip[]) => void;
 };
@@ -184,13 +194,17 @@ export default function AnimalModelPreview({
 }: PreviewProps) {
   const [autoRotate, setAutoRotate] = React.useState(true);
   const [ready, setReady] = React.useState(false);
+  const [availableAnimations, setAvailableAnimations] = React.useState<THREE.AnimationClip[]>([]);
   const idleTimer = React.useRef<number | null>(null);
 
   const handleAnimationsLoaded = React.useCallback(
     (anims: THREE.AnimationClip[]) => {
-      if (!onAnimationSelect || anims.length === 0) return;
-      const neutral = pickNeutralClip(anims, animName)?.name ?? anims[0].name;
-      onAnimationSelect(neutral, anims);
+      console.log('Animations loaded:', anims.map(a => a.name));
+      setAvailableAnimations(anims);
+      if (onAnimationSelect && anims.length > 0) {
+        const neutral = pickNeutralClip(anims, animName)?.name ?? anims[0].name;
+        onAnimationSelect(neutral, anims);
+      }
     },
     [onAnimationSelect, animName]
   );
@@ -241,6 +255,7 @@ export default function AnimalModelPreview({
         <Bounds fit margin={1.2}>
           <Suspense fallback={null}>
             <Model
+              key={modelUrl} // Force remount when model changes
               url={modelUrl}
               scale={scale * 0.4}
               rotation={rotation}
@@ -265,6 +280,14 @@ export default function AnimalModelPreview({
           maxDistance={18}
         />
       </Canvas>
+
+      {/* Debug info */}
+      {availableAnimations.length > 0 && (
+        <div className="absolute top-2 left-2 bg-black/50 text-white text-xs p-2 rounded">
+          <div>Current: {animName || 'None'}</div>
+          <div>Available: {availableAnimations.length}</div>
+        </div>
+      )}
     </div>
   );
 }

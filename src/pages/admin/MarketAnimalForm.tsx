@@ -48,6 +48,7 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [availableAnimations, setAvailableAnimations] = useState<THREE.AnimationClip[]>([]);
+  const [previewAnimation, setPreviewAnimation] = useState<string>('');
 
   const onChange = (k: keyof MarketAnimal, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -104,9 +105,15 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
   }
 
   const handleAnimationSelect = (name: string, animations: THREE.AnimationClip[]) => {
+    console.log('handleAnimationSelect called with:', name, animations.map(a => a.name));
     setAvailableAnimations(animations);
+    
+    // Set preview animation to the first one if not set
+    if (!previewAnimation && animations.length > 0) {
+      setPreviewAnimation(animations[0].name);
+    }
 
-    // Only set defaults if we don't have them yet
+    // Set defaults for game animations if not set
     if (!form.idle_anim && animations.length > 0) {
       const defaultIdle = animations.find(a => 
         /idle|stand|breath/i.test(a.name)
@@ -269,7 +276,7 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
               modelUrl={modelFile ? URL.createObjectURL(modelFile) : form.model_url} 
               scale={form.model_scale} 
               rotation={form.model_rotation}
-              animName={form.idle_anim || ''}
+              animName={previewAnimation}
               onAnimationSelect={handleAnimationSelect}
             />
           </div>
@@ -281,8 +288,11 @@ export default function MarketAnimalForm({ initial }: { initial?: Partial<Market
                 <label className="flex flex-col gap-1">
                   <span className="text-sm font-medium text-gray-300">Preview Animation</span>
                   <select 
-                    value={form.idle_anim} 
-                    onChange={(e) => onChange('idle_anim', e.target.value)}
+                    value={previewAnimation} 
+                    onChange={(e) => {
+                      console.log('Preview animation changed to:', e.target.value);
+                      setPreviewAnimation(e.target.value);
+                    }}
                     className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"
                   >
                     <option value="">Select preview animation</option>
