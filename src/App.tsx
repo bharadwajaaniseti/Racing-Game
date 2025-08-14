@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
 import { useUser } from './store/useUser'
 import { TopBarAuth } from './components/TopBarAuth'
@@ -71,6 +72,30 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#1f2937',
+              color: '#fff',
+              borderRadius: '0.5rem',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <TopBarAuth />
         <Routes>
           <Route path="/" element={<Home />} />

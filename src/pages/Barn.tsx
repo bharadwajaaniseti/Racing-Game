@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Zap, Heart, Gauge, Brain, Star, Award } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Zap, Heart, Gauge, Brain, Star, Award, ShoppingCart } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useBarn } from '../store/useBarn'
+import { Link } from 'react-router-dom'
 
 export function Barn() {
   const { user } = useUser()
@@ -10,12 +11,9 @@ export function Barn() {
     loading, 
     error, 
     fetchAnimals, 
-    createAnimal, 
     trainAnimal, 
     feedAnimal 
   } = useBarn()
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [newAnimalName, setNewAnimalName] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState('')
 
@@ -24,17 +22,6 @@ export function Barn() {
       fetchAnimals()
     }
   }, [user, fetchAnimals])
-
-  const handleCreateAnimal = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newAnimalName.trim()) return
-
-    setActionLoading('create')
-    await createAnimal(newAnimalName)
-    setNewAnimalName('')
-    setShowCreateForm(false)
-    setActionLoading(null)
-  }
 
   const handleTrain = async (animalId: string, stat: string) => {
     setActionLoading(animalId + '-' + stat)
@@ -82,43 +69,13 @@ export function Barn() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8">
           <h1 className="text-4xl font-bold text-white">Your Barn</h1>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center space-x-2"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Add New Deer</span>
-          </button>
         </div>
 
         {actionMessage && (
           <div className="mb-6 bg-blue-900/50 border border-blue-500/50 rounded-lg p-4">
             <p className="text-blue-400">{actionMessage}</p>
-          </div>
-        )}
-
-        {showCreateForm && (
-          <div className="mb-8 bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-            <h3 className="text-xl font-bold text-white mb-4">Create New Deer</h3>
-            <form onSubmit={handleCreateAnimal} className="flex gap-4">
-              <input
-                type="text"
-                value={newAnimalName}
-                onChange={(e) => setNewAnimalName(e.target.value)}
-                placeholder="Enter deer name"
-                className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                required
-              />
-              <button
-                type="submit"
-                disabled={actionLoading === 'create'}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                {actionLoading === 'create' ? 'Creating...' : 'Create'}
-              </button>
-            </form>
           </div>
         )}
 
@@ -130,13 +87,14 @@ export function Barn() {
         ) : animals.length === 0 ? (
           <div className="text-center text-white py-12">
             <p className="text-xl mb-4">You don't have any deer yet!</p>
-            <p className="text-gray-400 mb-6">Create your first deer to get started.</p>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
+            <p className="text-gray-400 mb-6">Visit the Market to purchase your first deer.</p>
+            <Link
+              to="/market"
+              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all inline-flex items-center space-x-2"
             >
-              Create Your First Deer
-            </button>
+              <ShoppingCart className="h-5 w-5" />
+              <span>Go to Market</span>
+            </Link>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

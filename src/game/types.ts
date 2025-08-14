@@ -1,3 +1,30 @@
+export type ItemType = 'food' | 'training' | 'boost' | 'cosmetic'
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+
+export type EffectType = 'stat_boost' | 'race_boost' | 'cosmetic'
+
+export interface ActiveEffect {
+  id: string
+  effect_type: EffectType
+  effect_value: number
+  expires_at: string
+}
+
+export interface MarketItem {
+  id: string
+  type: ItemType
+  name: string
+  description: string
+  price: number
+  effect_value: number
+  duration_seconds: number | null
+  cooldown_seconds: number | null
+  level_required: number
+  rarity: ItemRarity
+  max_stock: number | null
+  created_at: string
+}
+
 export interface Animal {
   id: string
   user_id: string
@@ -15,6 +42,7 @@ export interface Animal {
   model_rotation?: number
   idle_anim?: string
   run_anim?: string
+  isPurchased?: boolean
 }
 
 export interface RaceAnimal extends Animal {

@@ -1,6 +1,50 @@
 export interface Database {
   public: {
     Tables: {
+      market_items: {
+        Row: {
+          id: string
+          type: 'food' | 'training' | 'boost' | 'cosmetic'
+          name: string
+          description: string
+          price: number
+          effect_value: number
+          duration_seconds: number | null
+          cooldown_seconds: number | null
+          level_required: number
+          rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+          max_stock: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          type: 'food' | 'training' | 'boost' | 'cosmetic'
+          name: string
+          description: string
+          price: number
+          effect_value: number
+          duration_seconds?: number | null
+          cooldown_seconds?: number | null
+          level_required?: number
+          rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+          max_stock?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          type?: 'food' | 'training' | 'boost' | 'cosmetic'
+          name?: string
+          description?: string
+          price?: number
+          effect_value?: number
+          duration_seconds?: number | null
+          cooldown_seconds?: number | null
+          level_required?: number
+          rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+          max_stock?: number | null
+          created_at?: string
+        }
+      },
       profiles: {
         Row: {
           id: string

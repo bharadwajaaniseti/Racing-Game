@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 import type { Animal } from '../game/types'
 import type { TrainingResult, FeedingResult } from '../game/types'
 
@@ -25,24 +26,34 @@ export const useBarn = create<BarnState>((set, get) => ({
   fetchAnimals: async () => {
     set({ loading: true, error: null })
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      
       const { data, error } = await supabase
         .from('animals')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
       if (error) throw error
       set({ animals: data || [], loading: false })
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
     }
   },
 
   fetchInventory: async () => {
     set({ loading: true, error: null })
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
+        .eq('user_id', user.id)
         .order('item_name', { ascending: true })
 
       if (error) throw error
@@ -92,17 +103,30 @@ export const useBarn = create<BarnState>((set, get) => ({
 
       const { animals } = get()
       set({ animals: [...animals, data], loading: false })
+      toast.success(`Created new deer ${name}!`)
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
     }
   },
 
   trainAnimal: async (animalId: string, stat: string): Promise<TrainingResult> => {
     set({ loading: true, error: null })
     try {
-      const { animals } = get()
-      const animal = animals.find(a => a.id === animalId)
-      if (!animal) throw new Error('Animal not found')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // First verify the animal belongs to the user
+      const { data: animalData, error: animalError } = await supabase
+        .from('animals')
+        .select('*')
+        .eq('id', animalId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (animalError || !animalData) throw new Error('Animal not found or unauthorized')
+      const animal = animalData
 
       // Check for training items
       const { data: training, error: invError } = await supabase
@@ -145,26 +169,31 @@ export const useBarn = create<BarnState>((set, get) => ({
         .eq('id', training.id)
 
       // Update local state
+      const updatedAnimal = { ...animal, [stat]: newStatValue, experience: newExperience, level: newLevel }
+      const { animals } = get()
       const updatedAnimals = animals.map(a => 
-        a.id === animalId 
-          ? { ...a, [stat]: newStatValue, experience: newExperience, level: newLevel }
-          : a
+        a.id === animalId ? updatedAnimal : a
       )
       set({ animals: updatedAnimals, loading: false })
+
+      const message = `${animal.name} gained ${baseGain} ${stat} and ${experienceGain} experience!`
+      toast.success(message)
 
       return {
         success: true,
         statGain: baseGain,
         experienceGain,
-        message: `${animal.name} gained ${baseGain} ${stat} and ${experienceGain} experience!`
+        message
       }
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
       return {
         success: false,
         statGain: 0,
         experienceGain: 0,
-        message: (error as Error).message
+        message
       }
     }
   },
@@ -172,9 +201,19 @@ export const useBarn = create<BarnState>((set, get) => ({
   feedAnimal: async (animalId: string): Promise<FeedingResult> => {
     set({ loading: true, error: null })
     try {
-      const { animals } = get()
-      const animal = animals.find(a => a.id === animalId)
-      if (!animal) throw new Error('Animal not found')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // First verify the animal belongs to the user
+      const { data: animalData, error: animalError } = await supabase
+        .from('animals')
+        .select('*')
+        .eq('id', animalId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (animalError || !animalData) throw new Error('Animal not found or unauthorized')
+      const animal = animalData
 
       // Check for food items
       const { data: food, error: invError } = await supabase
@@ -208,22 +247,29 @@ export const useBarn = create<BarnState>((set, get) => ({
         .eq('id', food.id)
 
       // Update local state
+      const updatedAnimal = { ...animal, stamina: newStamina }
+      const { animals } = get()
       const updatedAnimals = animals.map(a => 
-        a.id === animalId ? { ...a, stamina: newStamina } : a
+        a.id === animalId ? updatedAnimal : a
       )
       set({ animals: updatedAnimals, loading: false })
+
+      const message = `${animal.name} gained ${staminaGain} stamina!`
+      toast.success(message)
 
       return {
         success: true,
         staminaGain,
-        message: `${animal.name} gained ${staminaGain} stamina!`
+        message
       }
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
       return {
         success: false,
         staminaGain: 0,
-        message: (error as Error).message
+        message
       }
     }
   },

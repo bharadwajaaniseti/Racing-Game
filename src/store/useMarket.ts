@@ -1,21 +1,15 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 import type { Animal } from '../game/types'
 
 interface MarketAnimal extends Animal {
   price: number
   created_by: string
+  isPurchased?: boolean
 }
 
-interface MarketItem {
-  id: string
-  type: string
-  name: string
-  description: string
-  price: number
-  effect_value: number
-  created_at: string
-}
+import type { MarketItem } from '../game/types'
 
 interface MarketState {
   marketAnimals: MarketAnimal[]
@@ -23,32 +17,80 @@ interface MarketState {
   userGold: number
   loading: boolean
   error: string | null
+  cooldowns: CooldownState
   fetchMarketAnimals: () => Promise<void>
   fetchMarketItems: () => Promise<void>
   fetchUserGold: () => Promise<void>
   purchaseAnimal: (animalId: string, price: number) => Promise<void>
   purchaseItem: (itemId: string, price: number) => Promise<void>
+  checkCooldown: (itemId: string) => { onCooldown: boolean, remainingTime: number | null }
+}
+
+interface CooldownState {
+  [key: string]: {
+    itemId: string
+    endsAt: number
+  }
 }
 
 export const useMarket = create<MarketState>((set, get) => ({
   marketAnimals: [],
   marketItems: [],
-  userGold: 1000, // Starting gold
+  userGold: 1000,
   loading: false,
   error: null,
+  cooldowns: {} as CooldownState,
+  
+  checkCooldown: (itemId: string) => {
+    const { cooldowns } = get()
+    const now = Date.now()
+    const cooldown = cooldowns[itemId]
+    
+    if (!cooldown || cooldown.endsAt <= now) {
+      return { onCooldown: false, remainingTime: null }
+    }
+    
+    return { 
+      onCooldown: true, 
+      remainingTime: Math.ceil((cooldown.endsAt - now) / 1000)
+    }
+  },
 
   fetchMarketAnimals: async () => {
     set({ loading: true, error: null })
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Get market animals
+      const { data: marketAnimals, error: marketError } = await supabase
         .from('market_animals')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      set({ marketAnimals: data || [], loading: false })
+      if (marketError) throw marketError
+
+      // Get user's purchased animals to check which ones they own
+      const { data: userAnimals, error: userError } = await supabase
+        .from('animals')
+        .select('name, type')
+        .eq('user_id', user.id)
+
+      if (userError) throw userError
+
+      // Mark animals as purchased if user owns them
+      const animalsWithPurchaseStatus = marketAnimals.map(marketAnimal => ({
+        ...marketAnimal,
+        isPurchased: userAnimals.some(userAnimal => 
+          userAnimal.name === marketAnimal.name && userAnimal.type === marketAnimal.type
+        )
+      }))
+
+      set({ marketAnimals: animalsWithPurchaseStatus || [], loading: false })
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
     }
   },
 
@@ -63,7 +105,9 @@ export const useMarket = create<MarketState>((set, get) => ({
       if (error) throw error
       set({ marketItems: data || [], loading: false })
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
     }
   },
 
@@ -141,8 +185,11 @@ export const useMarket = create<MarketState>((set, get) => ({
       if (updateError) throw updateError
 
       set({ userGold: newGold, loading: false })
+      toast.success(`Successfully purchased ${marketAnimal.name}!`)
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
       throw error
     }
   },
@@ -165,20 +212,37 @@ export const useMarket = create<MarketState>((set, get) => ({
 
       if (fetchError) throw fetchError
 
-      // Add to user's inventory
-      const { error: inventoryError } = await supabase
-        .from('inventory')
-        .upsert([{
-          user_id: user.id,
-          item_type: marketItem.type,
-          item_name: marketItem.name,
-          quantity: 1
-        }], {
-          onConflict: 'user_id,item_name',
-          ignoreDuplicates: false
+      // Check level requirement
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('level')
+        .eq('id', user.id)
+        .single()
+
+      if ((userProfile?.level || 1) < marketItem.level_required) {
+        throw new Error(`Level ${marketItem.level_required} required to purchase this item`)
+      }
+
+      // Check inventory space
+      const { data: inventoryItems } = await supabase
+        .from('user_inventory')
+        .select('quantity')
+        .eq('user_id', user.id)
+        .eq('item_name', marketItem.name)
+        .single()
+
+      if (marketItem.max_stock && (inventoryItems?.quantity || 0) >= marketItem.max_stock) {
+        throw new Error(`You can only hold ${marketItem.max_stock} of this item`)
+      }
+
+      // Call the buy_item function
+      const { error: purchaseError } = await supabase
+        .rpc('buy_item', {
+          p_item_id: itemId,
+          p_user_id: user.id
         })
 
-      if (inventoryError) throw inventoryError
+      if (purchaseError) throw purchaseError
 
       // Update user's gold
       const newGold = userGold - price
@@ -190,8 +254,11 @@ export const useMarket = create<MarketState>((set, get) => ({
       if (updateError) throw updateError
 
       set({ userGold: newGold, loading: false })
+      toast.success(`Successfully purchased ${marketItem.name}!`)
     } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      const message = (error as Error).message
+      set({ error: message, loading: false })
+      toast.error(message)
       throw error
     }
   }

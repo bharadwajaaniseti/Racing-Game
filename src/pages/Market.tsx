@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { ShoppingCart, Coins, Package, Heart, Zap, Star } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useMarket } from '../store/useMarket'
 import { ModelViewer } from '../components/ModelViewer'
-import type { Animal } from '../game/types'
+import type { Animal, ItemType, MarketItem } from '../game/types'
 
 export function Market() {
   const { user } = useUser()
@@ -13,10 +12,10 @@ export function Market() {
     marketItems, 
     userGold, 
     loading, 
-    error, 
     fetchMarketAnimals, 
     fetchMarketItems, 
     fetchUserGold,
+    purchaseAnimal,
     purchaseItem 
   } = useMarket()
   
@@ -40,45 +39,11 @@ export function Market() {
 
     setPurchaseLoading(animal.id)
     try {
-      // Get the user's current currency
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
-      // Create the animal for the user
-      const { error: createError } = await supabase
-        .from('animals')
-        .insert([{
-          user_id: user.id,
-          name: animal.name,
-          type: animal.type,
-          speed: animal.speed,
-          acceleration: animal.acceleration,
-          stamina: animal.stamina,
-          temper: animal.temper,
-          level: 1,
-          model_url: animal.model_url,
-          model_scale: animal.model_scale,
-          model_rotation: animal.model_rotation,
-          idle_anim: animal.idle_anim,
-          run_anim: animal.run_anim
-        }])
-
-      if (createError) throw createError
-
-      // Update user's currency
-      const { error: updateError } = await supabase
-        .from('user_currency')
-        .update({ gold: userGold - price })
-        .eq('user_id', user.id)
-
-      if (updateError) throw updateError
-
-      alert(`Successfully purchased ${animal.name}!`)
-      // Refresh gold and market after purchase
-      fetchUserGold()
+      await purchaseAnimal(animal.id, price)
+      // Refresh market after purchase
       fetchMarketAnimals()
-    } catch (error: any) {
-      alert(error.message || 'Purchase failed!')
+    } catch (error) {
+      // Error is already handled by the store
     } finally {
       setPurchaseLoading(null)
     }
@@ -101,20 +66,22 @@ export function Market() {
     }
   }
 
-  const getItemIcon = (type: string) => {
+  const getItemIcon = (type: ItemType) => {
     switch (type) {
       case 'food': return <Heart className="h-5 w-5" />
-      case 'potion': return <Zap className="h-5 w-5" />
-      case 'currency': return <Coins className="h-5 w-5" />
+      case 'training': return <Zap className="h-5 w-5" />
+      case 'boost': return <Package className="h-5 w-5" />
+      case 'cosmetic': return <Star className="h-5 w-5" />
       default: return <Package className="h-5 w-5" />
     }
   }
 
-  const getItemColor = (type: string) => {
+  const getItemColor = (type: ItemType) => {
     switch (type) {
       case 'food': return 'from-green-600 to-emerald-600'
-      case 'potion': return 'from-purple-600 to-violet-600'
-      case 'currency': return 'from-yellow-600 to-amber-600'
+      case 'training': return 'from-blue-600 to-cyan-600'
+      case 'boost': return 'from-purple-600 to-violet-600'
+      case 'cosmetic': return 'from-pink-600 to-rose-600'
       default: return 'from-gray-600 to-gray-700'
     }
   }
@@ -215,14 +182,24 @@ export function Market() {
                         e.stopPropagation()
                         handlePurchaseAnimal(animal, animal.price || 100)
                       }}
-                      disabled={purchaseLoading === animal.id || userGold < (animal.price || 100)}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-2 rounded-lg font-medium transition-all flex items-center justify-center space-x-2"
+                      disabled={purchaseLoading === animal.id || userGold < (animal.price || 100) || animal.isPurchased}
+                      className={`w-full py-2 rounded-lg font-medium transition-all flex items-center justify-center space-x-2 ${
+                        animal.isPurchased
+                          ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white'
+                      }`}
                     >
-                      <ShoppingCart className="h-4 w-4" />
-                      <span>
-                        {purchaseLoading === animal.id ? 'Purchasing...' : 
-                         userGold < (animal.price || 100) ? 'Not Enough Gold' : 'Purchase'}
-                      </span>
+                      {animal.isPurchased ? (
+                        <span>Already Purchased</span>
+                      ) : (
+                        <>
+                          <ShoppingCart className="h-4 w-4" />
+                          <span>
+                            {purchaseLoading === animal.id ? 'Purchasing...' : 
+                             userGold < (animal.price || 100) ? 'Not Enough Gold' : 'Purchase'}
+                          </span>
+                        </>
+                      )}
                     </button>
                   </div>
                 ))}
@@ -318,24 +295,68 @@ export function Market() {
                     <div className={`p-3 rounded-lg bg-gradient-to-r ${getItemColor(item.type)}`}>
                       {getItemIcon(item.type)}
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      item.type === 'food' ? 'bg-green-600/20 text-green-400' :
-                      item.type === 'potion' ? 'bg-purple-600/20 text-purple-400' :
-                      item.type === 'currency' ? 'bg-yellow-600/20 text-yellow-400' :
-                      'bg-gray-600/20 text-gray-400'
-                    }`}>
-                      {item.type}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${
+                        item.type === 'food' ? 'bg-green-600/20 text-green-400' :
+                        item.type === 'training' ? 'bg-blue-600/20 text-blue-400' :
+                        item.type === 'boost' ? 'bg-purple-600/20 text-purple-400' :
+                        item.type === 'cosmetic' ? 'bg-pink-600/20 text-pink-400' :
+                        'bg-gray-600/20 text-gray-400'
+                      }`}>
+                        {item.type}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.rarity === 'legendary' ? 'bg-yellow-600/20 text-yellow-400' :
+                        item.rarity === 'rare' ? 'bg-purple-600/20 text-purple-400' :
+                        item.rarity === 'uncommon' ? 'bg-blue-600/20 text-blue-400' :
+                        'bg-gray-600/20 text-gray-400'
+                      }`}>
+                        {item.rarity}
+                      </span>
+                    </div>
                   </div>
 
                   <h3 className="text-lg font-bold text-white mb-2">{item.name}</h3>
                   <p className="text-gray-400 text-sm mb-4 min-h-[2.5rem]">{item.description}</p>
 
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-yellow-400 font-bold text-lg">{item.price} Gold</span>
-                    {item.effect_value > 0 && (
-                      <span className="text-green-400 text-sm">+{item.effect_value}</span>
-                    )}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-yellow-400 font-bold text-lg">{item.price} Gold</span>
+                      {item.effect_value > 0 && (
+                        <span className="text-green-400 text-sm">+{item.effect_value}</span>
+                      )}
+                    </div>
+                    
+                    <div className="border-t border-gray-700 pt-3 space-y-2">
+                      {item.duration_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Duration:</span>
+                          <span className="text-cyan-400">{Math.floor(item.duration_seconds / 60)} min</span>
+                        </div>
+                      )}
+                      {item.cooldown_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Cooldown:</span>
+                          <span className="text-cyan-400">
+                            {item.cooldown_seconds >= 3600 
+                              ? `${Math.floor(item.cooldown_seconds / 3600)}h` 
+                              : `${Math.floor(item.cooldown_seconds / 60)}m`}
+                          </span>
+                        </div>
+                      )}
+                      {item.level_required > 1 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Required Level:</span>
+                          <span className="text-yellow-400">{item.level_required}</span>
+                        </div>
+                      )}
+                      {item.max_stock && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Max Stock:</span>
+                          <span className="text-purple-400">{item.max_stock}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <button
@@ -370,11 +391,6 @@ export function Market() {
           </div>
         )}
 
-        {error && (
-          <div className="fixed bottom-4 right-4 bg-red-900/90 border border-red-500/50 rounded-lg p-4 max-w-sm">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
       </div>
     </div>
   )
