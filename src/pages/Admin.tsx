@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { Plus, Edit, Trash2, Save, X, Upload, Users, Package, Coins } from 'lucide-react'
+import { Plus, Edit, Trash2, Save, X, Users, Package, Coins } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useAdmin } from '../store/useAdmin'
 import { Animal3D } from '../components/Animal3D'
 import type { Animal } from '../game/types'
+import MarketAnimalForm from './admin/MarketAnimalForm'
 
 interface EditingAnimal extends Partial<Animal> {
   id?: string
@@ -54,19 +55,6 @@ export function Admin() {
       fetchMarketItems()
     }
   }, [user, profile, fetchAllAnimals, fetchAllUsers, fetchMarketItems])
-
-  const handleCreateAnimal = () => {
-    setEditingAnimal({
-      name: '',
-      speed: 50,
-      acceleration: 50,
-      stamina: 50,
-      temper: 50,
-      level: 1,
-      price: 100
-    })
-    setShowCreateForm(true)
-  }
 
   const handleSaveAnimal = async () => {
     if (!editingAnimal) return
@@ -119,39 +107,60 @@ export function Admin() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-white">Admin Panel</h1>
-          <div className="flex space-x-2">
+          <div className="flex items-center space-x-4">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setActiveTab('animals')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'animals'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Package className="h-4 w-4 inline mr-2" />
+                Animals
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'users'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Users className="h-4 w-4 inline mr-2" />
+                Users
+              </button>
+              <button
+                onClick={() => setActiveTab('market')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'market'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Coins className="h-4 w-4 inline mr-2" />
+                Market
+              </button>
+            </div>
             <button
-              onClick={() => setActiveTab('animals')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'animals'
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
+              onClick={() => {
+                setActiveTab('market');
+                setEditingAnimal({
+                  name: '',
+                  type: 'stag',
+                  speed: 50,
+                  acceleration: 50,
+                  stamina: 50,
+                  temper: 50,
+                  level: 1,
+                  price: 100
+                });
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
             >
-              <Package className="h-4 w-4 inline mr-2" />
-              Animals
-            </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'users'
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <Users className="h-4 w-4 inline mr-2" />
-              Users
-            </button>
-            <button
-              onClick={() => setActiveTab('market')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'market'
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <Coins className="h-4 w-4 inline mr-2" />
-              Market
+              <Plus className="h-4 w-4" />
+              <span>Create Market Animal</span>
             </button>
           </div>
         </div>
@@ -162,7 +171,7 @@ export function Admin() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Manage Animals</h2>
               <button
-                onClick={handleCreateAnimal}
+                onClick={() => setActiveTab('market')}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
@@ -305,64 +314,68 @@ export function Admin() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white">Market Management</h2>
+              <button
+                onClick={() => setEditingAnimal({ name: '', type: 'stag', speed: 50, acceleration: 50, stamina: 50, temper: 50, level: 1, price: 100 })}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Create Market Animal</span>
+              </button>
             </div>
 
-            {/* Create Market Item */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-              <h3 className="text-xl font-bold text-white mb-4">Create Market Item</h3>
-              <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <select
-                  value={newMarketItem.type}
-                  onChange={(e) => setNewMarketItem({...newMarketItem, type: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                >
-                  <option value="food">Food</option>
-                  <option value="potion">Potion</option>
-                  <option value="animal">Animal</option>
-                  <option value="currency">Gold Coins</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Item name"
-                  value={newMarketItem.name}
-                  onChange={(e) => setNewMarketItem({...newMarketItem, name: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            {editingAnimal && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+                <MarketAnimalForm 
+                  initial={editingAnimal} 
+                  onSave={() => {
+                    setEditingAnimal(null)
+                    fetchAllAnimals()
+                  }}
+                  onCancel={() => setEditingAnimal(null)}
                 />
-                <input
-                  type="text"
-                  placeholder="Description"
-                  value={newMarketItem.description}
-                  onChange={(e) => setNewMarketItem({...newMarketItem, description: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={newMarketItem.price}
-                  onChange={(e) => setNewMarketItem({...newMarketItem, price: parseInt(e.target.value)})}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-                <button
-                  onClick={handleCreateMarketItem}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-                >
-                  Create
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Market Items List */}
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-              <h3 className="text-xl font-bold text-white mb-4">Market Items</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Market Animals</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketItems.map((item) => (
+                {marketItems.filter(item => item.type === 'animal').map((item) => (
+                  <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-white">{item.name}</h4>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setEditingAnimal(item)}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="text-red-400 hover:text-red-300">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm mb-2">{item.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-yellow-400 font-bold">{item.price} Gold</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Other Market Items */}
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+              <h3 className="text-xl font-bold text-white mb-4">Other Market Items</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {marketItems.filter(item => item.type !== 'animal').map((item) => (
                   <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-white">{item.name}</h4>
                       <span className={`px-2 py-1 rounded text-xs ${
                         item.type === 'food' ? 'bg-green-600' :
                         item.type === 'potion' ? 'bg-purple-600' :
-                        item.type === 'animal' ? 'bg-blue-600' :
                         'bg-yellow-600'
                       } text-white`}>
                         {item.type}

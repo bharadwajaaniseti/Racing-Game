@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { supabase } from '../lib/supabase'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { ShoppingCart, Coins, Package, Heart, Zap, Star } from 'lucide-react'
 import { useUser } from '../store/useUser'
@@ -8,7 +9,7 @@ import { Animal3D } from '../components/Animal3D'
 import type { Animal } from '../game/types'
 
 export function Market() {
-  const { user, profile } = useUser()
+  const { user } = useUser()
   const { 
     marketAnimals, 
     marketItems, 
@@ -18,7 +19,6 @@ export function Market() {
     fetchMarketAnimals, 
     fetchMarketItems, 
     fetchUserGold,
-    purchaseAnimal, 
     purchaseItem 
   } = useMarket()
   
@@ -34,7 +34,7 @@ export function Market() {
     }
   }, [user, fetchMarketAnimals, fetchMarketItems, fetchUserGold])
 
-  const handlePurchaseAnimal = async (animal: Animal, price: number) => {
+  const handlePurchaseAnimal = async (animal: Animal & { price?: number }, price: number) => {
     if (userGold < price) {
       alert('Not enough gold!')
       return
@@ -42,10 +42,14 @@ export function Market() {
 
     setPurchaseLoading(animal.id)
     try {
-      await purchaseAnimal(animal.id, price)
+      const { error } = await supabase.rpc('buy_animal', { p_market_id: animal.id })
+      if (error) throw error
       alert(`Successfully purchased ${animal.name}!`)
-    } catch (error) {
-      alert('Purchase failed!')
+      // Refresh gold and market after purchase
+      fetchUserGold()
+      fetchMarketAnimals()
+    } catch (error: any) {
+      alert(error.message || 'Purchase failed!')
     } finally {
       setPurchaseLoading(null)
     }
