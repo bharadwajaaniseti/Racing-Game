@@ -9,7 +9,7 @@ import { Home } from './pages/Home'
 import { Auth } from './pages/Auth'
 import { Admin } from './pages/Admin'
 import { Market } from './pages/Market'
-import { Barn } from './pages/Barn'
+import Barn from './pages/Barn'
 import { Race } from './pages/Race'
 import { Leaderboard } from './pages/Leaderboard'
 

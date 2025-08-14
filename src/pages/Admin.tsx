@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, X, Users, Package, Coins } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Users, Package } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useAdmin } from '../store/useAdmin'
 import { ModelViewer } from '../components/ModelViewer'
@@ -12,11 +12,11 @@ interface EditingAnimal {
   type: string;
   description?: string;
   price: number;
-  speed: number;
-  acceleration: number;
-  stamina: number;
-  temper: number;
-  level: number;
+  speed?: number;
+  acceleration?: number;
+  stamina?: number;
+  temper?: number;
+  level?: number;
   model_url?: string;
   model_scale?: number;
   model_rotation?: number;
@@ -25,6 +25,9 @@ interface EditingAnimal {
   thumbnail_url?: string;
   is_active?: boolean;
   stock?: number;
+  effect_value?: number;
+  duration_seconds?: number;
+  cooldown_seconds?: number;
   position?: { x: number; y: number; z: number };
   velocity?: { x: number; y: number; z: number };
   currentSpeed?: number;
@@ -68,7 +71,7 @@ export function Admin() {
     effect_value: 0
   })
   
-  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'market' | 'food' | 'gold'>('animals')
+  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'items' | 'food' | 'gold'>('animals')
   const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
 
   // Handle Escape key to close modal
@@ -140,6 +143,17 @@ export function Admin() {
                 Food
               </button>
               <button
+                onClick={() => setActiveTab('items')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'items'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <Package className="h-4 w-4 inline mr-2" />
+                Items
+              </button>
+              <button
                 onClick={() => setActiveTab('gold')}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   activeTab === 'gold'
@@ -160,17 +174,6 @@ export function Admin() {
               >
                 <Users className="h-4 w-4 inline mr-2" />
                 Users
-              </button>
-              <button
-                onClick={() => setActiveTab('market')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  activeTab === 'market'
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                <Coins className="h-4 w-4 inline mr-2" />
-                Market
               </button>
             </div>
           </div>
@@ -334,7 +337,7 @@ export function Admin() {
         {activeTab === 'food' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Food Items</h2>
+              <h2 className="text-2xl font-bold text-white">Food & Consumables</h2>
               <button
                 onClick={() => setNewMarketItem({
                   type: 'food',
@@ -351,28 +354,61 @@ export function Admin() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {marketItems.filter(item => item.type === 'food').map((item) => (
-                <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-white">{item.name}</h4>
-                    <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
-                      Food
-                    </span>
-                  </div>
-                  <p className="text-gray-300 text-sm mb-2">{item.description}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-yellow-400 font-bold">{item.price} Gold</span>
-                    <div className="flex space-x-2">
-                      <button className="text-blue-400 hover:text-blue-300">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-400 hover:text-red-300">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+              {marketItems
+                .filter(item => item.type === 'food')
+                .map((item) => (
+                  <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-white">{item.name}</h4>
+                      <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
+                        Food
+                      </span>
+                    </div>
+                    <p className="text-gray-300 text-sm mb-2">{item.description}</p>
+                    
+                    <div className="border-t border-gray-600 mt-3 pt-3 space-y-2">
+                      {item.effect_value && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Effect:</span>
+                          <span className={`${item.effect_value > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {item.effect_value > 0 ? '+' : ''}{item.effect_value}
+                          </span>
+                        </div>
+                      )}
+                      {item.duration_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Duration:</span>
+                          <span className="text-cyan-400">{Math.floor(item.duration_seconds / 60)} min</span>
+                        </div>
+                      )}
+                      {item.cooldown_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Cooldown:</span>
+                          <span className="text-cyan-400">
+                            {item.cooldown_seconds >= 3600 
+                              ? `${Math.floor(item.cooldown_seconds / 3600)}h` 
+                              : `${Math.floor(item.cooldown_seconds / 60)}m`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-yellow-400 font-bold">{item.price} Gold</span>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setEditingAnimal(item)}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="text-red-400 hover:text-red-300">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}
@@ -424,44 +460,76 @@ export function Admin() {
           </div>
         )}
 
-        {/* Market Tab */}
-        {activeTab === 'market' && (
+        {/* Items Tab */}
+        {activeTab === 'items' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Market Management</h2>
+              <h2 className="text-2xl font-bold text-white">Manage Items</h2>
+              <button
+                onClick={() => setNewMarketItem({
+                  type: 'training',
+                  name: '',
+                  description: '',
+                  price: 0,
+                  effect_value: 0
+                })}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add New Item</span>
+              </button>
             </div>
 
-            {editingAnimal && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-                <MarketAnimalForm 
-                  initial={editingAnimal} 
-                  onSave={() => {
-                    setEditingAnimal(null)
-                    fetchAllAnimals()
-                  }}
-                  onCancel={() => setEditingAnimal(null)}
-                />
-              </div>
-            )}
-
-            {/* Market Items List */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-              <h3 className="text-xl font-bold text-white mb-4">Market Animals</h3>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketItems.filter(item => item.type === 'animal').map((item) => (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {marketItems
+                .filter(item => item.type !== 'food' && item.type !== 'animal')
+                .map((item) => (
                   <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-bold text-white">{item.name}</h4>
+                      <span className={`px-2 py-1 rounded text-xs capitalize ${
+                        item.type === 'training' ? 'bg-blue-600' :
+                        item.type === 'boost' ? 'bg-purple-600' :
+                        item.type === 'cosmetic' ? 'bg-pink-600' :
+                        'bg-yellow-600'
+                      } text-white`}>
+                        {item.type}
+                      </span>
+                    </div>
+                    <p className="text-gray-300 text-sm mb-2">{item.description}</p>
+                    
+                    <div className="border-t border-gray-600 mt-3 pt-3 space-y-2">
+                      {item.effect_value && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Effect:</span>
+                          <span className={`${item.effect_value > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {item.effect_value > 0 ? '+' : ''}{item.effect_value}
+                          </span>
+                        </div>
+                      )}
+                      {item.duration_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Duration:</span>
+                          <span className="text-cyan-400">{Math.floor(item.duration_seconds / 60)} min</span>
+                        </div>
+                      )}
+                      {item.cooldown_seconds && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Cooldown:</span>
+                          <span className="text-cyan-400">
+                            {item.cooldown_seconds >= 3600 
+                              ? `${Math.floor(item.cooldown_seconds / 3600)}h` 
+                              : `${Math.floor(item.cooldown_seconds / 60)}m`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-yellow-400 font-bold">{item.price} Gold</span>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => setEditingAnimal({
-                            ...item,
-                            speed: item.speed || 50,
-                            acceleration: item.acceleration || 50,
-                            stamina: item.stamina || 50,
-                            temper: item.temper || 50,
-                            level: item.level || 1,
-                          })}
+                          onClick={() => setEditingAnimal(item)}
                           className="text-blue-400 hover:text-blue-300"
                         >
                           <Edit className="h-4 w-4" />
@@ -471,41 +539,8 @@ export function Admin() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-gray-300 text-sm mb-2">{item.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-yellow-400 font-bold">{item.price} Gold</span>
-                    </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Other Market Items */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
-              <h3 className="text-xl font-bold text-white mb-4">Other Market Items</h3>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {marketItems.filter(item => item.type !== 'animal').map((item) => (
-                  <div key={item.id} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-white">{item.name}</h4>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        item.type === 'food' ? 'bg-green-600' :
-                        item.type === 'potion' ? 'bg-purple-600' :
-                        'bg-yellow-600'
-                      } text-white`}>
-                        {item.type}
-                      </span>
-                    </div>
-                    <p className="text-gray-300 text-sm mb-2">{item.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-yellow-400 font-bold">{item.price} Gold</span>
-                      <button className="text-red-400 hover:text-red-300">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}

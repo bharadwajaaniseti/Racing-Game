@@ -28,7 +28,7 @@ export const useInventory = create<InventoryState>((set, get) => ({
       if (!user) throw new Error('Not authenticated')
 
       const { data: inventoryItems, error } = await supabase
-        .from('inventory')
+        .from('user_inventory')
         .select('*')
         .eq('user_id', user.id)
 
@@ -75,7 +75,7 @@ export const useInventory = create<InventoryState>((set, get) => ({
 
       // Get current quantity
       const { data: currentInventory, error: inventoryError } = await supabase
-        .from('inventory')
+        .from('user_inventory')
         .select('quantity')
         .eq('user_id', user.id)
         .eq('item_name', item.name)
@@ -87,7 +87,7 @@ export const useInventory = create<InventoryState>((set, get) => ({
       const newQuantity = (currentInventory?.quantity || 1) - 1
       if (newQuantity <= 0) {
         const { error: deleteError } = await supabase
-          .from('inventory')
+          .from('user_inventory')
           .delete()
           .eq('user_id', user.id)
           .eq('item_name', item.name)
@@ -95,7 +95,7 @@ export const useInventory = create<InventoryState>((set, get) => ({
         if (deleteError) throw deleteError
       } else {
         const { error: updateError } = await supabase
-          .from('inventory')
+          .from('user_inventory')
           .update({ quantity: newQuantity })
           .eq('user_id', user.id)
           .eq('item_name', item.name)
