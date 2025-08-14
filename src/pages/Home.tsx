@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { Link } from 'react-router-dom'
 import { Car, Trophy, User, Zap } from 'lucide-react'
 import { useUser } from '../store/useUser'
@@ -23,11 +23,11 @@ export function Home() {
               {user ? (
                 <>
                   <Link
-                    to="/garage"
+                    to="/barn"
                     className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center space-x-2"
                   >
                     <User className="h-6 w-6" />
-                    <span>Go to Garage</span>
+                    <span>Go to Barn</span>
                   </Link>
                   <Link
                     to="/race"
@@ -88,12 +88,12 @@ export function Home() {
               <h3 className="text-2xl font-bold text-white mb-6 text-center">Quick Actions</h3>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  to="/garage"
+                  to="/barn"
                   className="flex items-center space-x-3 bg-gray-700/50 hover:bg-gray-700/70 rounded-lg p-4 transition-colors text-white"
                 >
                   <User className="h-6 w-6 text-cyan-400" />
                   <div>
-                    <div className="font-medium">Manage Animals</div>
+                    <div className="font-medium">Visit Barn</div>
                     <div className="text-sm text-gray-400">Train and feed your deer</div>
                   </div>
                 </Link>

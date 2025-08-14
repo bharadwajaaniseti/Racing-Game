@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { Plus, Zap, Heart, Gauge, Brain, Star, Award } from 'lucide-react'
 import { useUser } from '../store/useUser'
-import { useGarage } from '../store/useGarage'
+import { useBarn } from '../store/useBarn'
 
-export function Garage() {
+export function Barn() {
   const { user } = useUser()
   const { 
     animals, 
@@ -13,7 +13,7 @@ export function Garage() {
     createAnimal, 
     trainAnimal, 
     feedAnimal 
-  } = useGarage()
+  } = useBarn()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newAnimalName, setNewAnimalName] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -73,7 +73,7 @@ export function Garage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900 flex items-center justify-center">
         <div className="text-center text-white">
-          <p className="text-xl mb-4">Please sign in to access your garage</p>
+          <p className="text-xl mb-4">Please sign in to access your barn</p>
         </div>
       </div>
     )
@@ -83,7 +83,7 @@ export function Garage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-white">Your Garage</h1>
+          <h1 className="text-4xl font-bold text-white">Your Barn</h1>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center space-x-2"

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
@@ -8,7 +8,7 @@ import { Home } from './pages/Home'
 import { Auth } from './pages/Auth'
 import { Admin } from './pages/Admin'
 import { Market } from './pages/Market'
-import { Garage } from './pages/Garage'
+import { Barn } from './pages/Barn'
 import { Race } from './pages/Race'
 import { Leaderboard } from './pages/Leaderboard'
 
@@ -57,7 +57,7 @@ function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         useUser.setState({ user: session?.user || null })
         if (session?.user && !useUser.getState().profile) {
           useUser.getState().fetchProfile()
@@ -81,8 +81,8 @@ function App() {
           />
           <Route path="/market" element={<Market />} />
           <Route 
-            path="/garage" 
-            element={user ? <Garage /> : <Navigate to="/auth" replace />} 
+            path="/barn" 
+            element={user ? <Barn /> : <Navigate to="/auth" replace />} 
           />
           <Route 
             path="/race" 

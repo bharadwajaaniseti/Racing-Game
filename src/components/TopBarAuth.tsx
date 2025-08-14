@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { Link } from 'react-router-dom'
 import { User, Trophy, Car, Home, ShoppingCart, Settings } from 'lucide-react'
 import { useUser } from '../store/useUser'
@@ -29,11 +29,11 @@ export function TopBarAuth() {
             {user && (
               <>
                 <Link 
-                  to="/garage" 
+                  to="/barn" 
                   className="flex items-center space-x-1 hover:text-cyan-400 transition-colors"
                 >
                   <User className="h-4 w-4" />
-                  <span>Garage</span>
+                  <span>Barn</span>
                 </Link>
                 <Link 
                   to="/market" 

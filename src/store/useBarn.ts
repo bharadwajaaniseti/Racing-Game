@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Animal } from '../game/types'
 import type { TrainingResult, FeedingResult } from '../game/types'
 
-interface GarageState {
+interface BarnState {
   animals: Animal[]
   inventory: any[]
   loading: boolean
@@ -16,7 +16,7 @@ interface GarageState {
   updateAnimalStats: (animalId: string, updates: Partial<Animal>) => Promise<void>
 }
 
-export const useGarage = create<GarageState>((set, get) => ({
+export const useBarn = create<BarnState>((set, get) => ({
   animals: [],
   inventory: [],
   loading: false,

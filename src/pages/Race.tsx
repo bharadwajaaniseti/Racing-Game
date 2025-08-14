@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Environment, ContactShadows } from '@react-three/drei'
 import { Play, Square, RotateCcw } from 'lucide-react'
 import { useUser } from '../store/useUser'
-import { useGarage } from '../store/useGarage'
+import { useBarn } from '../store/useBarn'
 import { Track3D } from '../components/Track3D'
 import { Animal3D } from '../components/Animal3D'
 import { RaceHUD } from '../components/RaceHUD'
@@ -12,7 +12,7 @@ import type { Race, RaceAnimal } from '../game/types'
 
 export function Race() {
   const { user } = useUser()
-  const { animals, fetchAnimals } = useGarage()
+  const { animals, fetchAnimals } = useBarn()
   const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null)
   const [race, setRace] = useState<Race | null>(null)
   const [isRacing, setIsRacing] = useState(false)
@@ -137,10 +137,10 @@ export function Race() {
               <div className="text-center py-8">
                 <p className="text-gray-400 mb-4">You need at least one deer to race!</p>
                 <a
-                  href="/garage"
+                  href="/barn"
                   className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
                 >
-                  Go to Garage
+                  Go to Barn
                 </a>
               </div>
             ) : (
