@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Center, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, useGLTF, Center, PerspectiveCamera, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 function Model({ 
@@ -26,7 +26,14 @@ function Model({
       mixer.current = new THREE.AnimationMixer(scene);
       onAnimationsLoaded?.(animations);
     }
-  }, [animations, onAnimationsLoaded, scene]);
+    
+    // Set initial scale
+    scene.scale.setScalar(scale);
+    
+    // Set initial rotation
+    scene.rotation.y = rotation * Math.PI / 180;
+    
+  }, [scene, animations, scale, rotation, onAnimationsLoaded]);
 
   // Handle animation changes
   React.useEffect(() => {
@@ -48,20 +55,20 @@ function Model({
         activeAction.current.fadeOut(0.5);
       }
     };
-  }, [animations, animName, mixer]);
+  }, [animations, animName]);
   
-  useFrame((_, d) => mixer.current?.update(d));
+  useFrame((_, delta) => mixer.current?.update(delta));
 
   return (
-    <group position={[0, -0.5, 0]}>
-      <Center>
-        <primitive 
-          object={scene} 
-          scale={scale}
-          rotation={[0, rotation * Math.PI/180, 0]} 
-        />
-      </Center>
-    </group>
+    <Center>
+      <Float
+        speed={1.5}
+        rotationIntensity={0.5}
+        floatIntensity={0.2}
+      >
+        <primitive object={scene} />
+      </Float>
+    </Center>
   );
 }
 
@@ -72,7 +79,6 @@ export default function AnimalModelPreview({ modelUrl, scale=1, rotation=0, anim
   animName?: string;
   onAnimationSelect?: (name: string, animations: THREE.AnimationClip[]) => void;
 }) {
-  // Callback to receive animations from the Model component
   const handleAnimationsLoaded = React.useCallback((animations: THREE.AnimationClip[]) => {
     if (onAnimationSelect && animations.length > 0) {
       onAnimationSelect(
@@ -82,49 +88,60 @@ export default function AnimalModelPreview({ modelUrl, scale=1, rotation=0, anim
     }
   }, [onAnimationSelect, animName]);
 
-  if (!modelUrl) return <div className="h-64 flex items-center justify-center text-sm opacity-70">No model uploaded</div>;
+  if (!modelUrl) return (
+    <div className="h-[600px] flex items-center justify-center text-sm opacity-70 bg-gray-900 rounded-lg">
+      No model uploaded
+    </div>
+  );
   
   return (
     <div className="h-[600px] relative bg-gray-900 rounded-lg overflow-hidden">
-      <Canvas 
-        camera={{ 
-          position: [3, 4.5, 3], 
-          fov: 50,
-          near: 0.1,
-          far: 1000
-        }}
-        shadows
-      >
-        <color attach="background" args={['#1a1a1a']} />
-        <fog attach="fog" args={['#1a1a1a', 10, 20]} />
-        <ambientLight intensity={0.7} />
-        <directionalLight 
-          position={[5, 5, 5]} 
-          intensity={0.8} 
-          castShadow
-          shadow-mapSize={[1024, 1024]}
+      <Canvas shadows>
+        <PerspectiveCamera 
+          makeDefault 
+          position={[2.5, 2, 2.5]} 
+          fov={45}
+          near={0.1}
+          far={100}
         />
-        <spotLight
-          position={[-5, 5, 0]}
-          intensity={0.4}
-          angle={0.6}
-          penumbra={0.8}
+        <ambientLight intensity={0.7} />
+        <spotLight 
+          position={[5, 5, 5]} 
+          angle={0.4} 
+          penumbra={1} 
+          intensity={0.5} 
+          castShadow 
+        />
+        <spotLight 
+          position={[-5, 5, -5]} 
+          angle={0.4} 
+          penumbra={1} 
+          intensity={0.5} 
+          castShadow 
         />
         <Model 
           url={modelUrl} 
-          scale={scale * 0.4} // Default scale that matches the desired preview size
+          scale={scale} 
           rotation={rotation} 
           animName={animName} 
           onAnimationsLoaded={handleAnimationsLoaded}
         />
+        <mesh 
+          rotation={[-Math.PI / 2, 0, 0]} 
+          position={[0, -1, 0]} 
+          receiveShadow
+        >
+          <planeGeometry args={[100, 100]} />
+          <shadowMaterial opacity={0.2} />
+        </mesh>
         <OrbitControls 
           enablePan={false}
-          minDistance={3}
+          minDistance={2}
           maxDistance={10}
-          minPolarAngle={Math.PI * 0.25}
-          maxPolarAngle={Math.PI * 0.75}
-          target={[0, 0.5, 0]}
-          enableDamping={true}
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI * 0.85}
+          target={[0, 0, 0]}
+          enableDamping
           dampingFactor={0.05}
         />
       </Canvas>
