@@ -277,6 +277,12 @@ export function Admin() {
                           finished: false
                         }}
                         color="#4F46E5"
+                        modelUrl={selectedAnimal.model_url}
+                        scale={selectedAnimal.model_scale || 1}
+                        yawOffsetDeg={selectedAnimal.model_rotation || 0}
+                        idleAnim={selectedAnimal.idle_anim}
+                        walkAnim="Walk"
+                        runAnim={selectedAnimal.run_anim}
                       />
                     )}
                   </Canvas>

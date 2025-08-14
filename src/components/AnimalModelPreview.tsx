@@ -39,9 +39,11 @@ function Model({
   rotation = 0,
   onLoaded,
 }: ModelProps) {
+  console.log('Loading model from URL:', url);
   const { scene } = useGLTF(url);
   
   React.useEffect(() => {
+    console.log('Model scene loaded:', scene);
     onLoaded?.();
   }, [scene, onLoaded]);
 
@@ -70,6 +72,7 @@ export default function AnimalModelPreview({
   scale = 1,
   rotation = 0,
 }: PreviewProps) {
+  console.log('AnimalModelPreview received modelUrl:', modelUrl);
   const [autoRotate, setAutoRotate] = React.useState(true);
   const [ready, setReady] = React.useState(false);
   const idleTimer = React.useRef<number | null>(null);

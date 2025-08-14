@@ -9,6 +9,11 @@ export interface Animal {
   temper: number
   experience: number
   level: number
+  model_url?: string
+  model_scale?: number
+  model_rotation?: number
+  idle_anim?: string
+  run_anim?: string
 }
 
 export interface RaceAnimal extends Animal {
