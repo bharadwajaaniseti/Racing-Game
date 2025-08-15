@@ -213,7 +213,7 @@ export function AnimalDetails() {
                 <div>
                   <h3 className="font-bold text-white">Hunger Level</h3>
                   <p className="text-sm text-gray-400">
-                    Decreases by {animal.hunger_rate || animal.market_hunger_rate || 1} points per minute
+                    Decreases by {animal.effective_hunger_rate} points per minute
                   </p>
                 </div>
                 <span className={`text-sm font-medium ${
