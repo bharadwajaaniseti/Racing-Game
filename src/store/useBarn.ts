@@ -29,9 +29,9 @@ export const useBarn = create<BarnState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
       
-      // Fetch from animals_with_hunger view to get real-time hunger data
+      // Fetch from animals table directly
       const { data, error } = await supabase
-        .from('animals_with_hunger')
+        .from('animals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
@@ -47,9 +47,9 @@ export const useBarn = create<BarnState>((set, get) => ({
           table: 'animals',
           filter: `user_id=eq.${user.id}`
         }, async () => {
-          // Re-fetch animals from the view to get updated hunger calculations
+          // Re-fetch animals from the animals table
           const { data: updatedData, error: refreshError } = await supabase
-            .from('animals_with_hunger')
+            .from('animals')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true })
@@ -59,7 +59,7 @@ export const useBarn = create<BarnState>((set, get) => ({
             
             // Check for low hunger animals and show notifications
             updatedData.forEach((animal) => {
-              const hungerLevel = animal.current_hunger_level || 100
+              const hungerLevel = animal.hunger_level || 100
               if (hungerLevel <= 20) {
                 toast.error(`${animal.name} is very hungry! (${Math.round(hungerLevel)}% hunger)`, {
                   duration: 5000,
@@ -217,9 +217,9 @@ export const useBarn = create<BarnState>((set, get) => ({
           .eq('id', trainingItem.id)
       }
 
-      // Update local state by refreshing from animals_with_hunger view
+      // Update local state by refreshing from animals table
       const { data: refreshedAnimals } = await supabase
-        .from('animals_with_hunger')
+        .from('animals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
@@ -260,7 +260,7 @@ export const useBarn = create<BarnState>((set, get) => ({
 
       // First verify the animal belongs to the user and get current hunger
       const { data: animalData, error: animalError } = await supabase
-        .from('animals_with_hunger')
+        .from('animals')
         .select('*')
         .eq('id', animalId)
         .eq('user_id', user.id)
@@ -268,7 +268,7 @@ export const useBarn = create<BarnState>((set, get) => ({
 
       if (animalError || !animalData) throw new Error('Animal not found or unauthorized')
       
-      const currentHunger = animalData.current_hunger_level || 0
+      const currentHunger = animalData.hunger_level || 0
       if (currentHunger >= 100) {
         throw new Error('Animal is not hungry!')
       }
@@ -321,9 +321,9 @@ export const useBarn = create<BarnState>((set, get) => ({
           .eq('id', foodItem.id)
       }
 
-      // Update local state by refreshing from animals_with_hunger view
+      // Update local state by refreshing from animals table
       const { data: refreshedAnimals } = await supabase
-        .from('animals_with_hunger')
+        .from('animals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })

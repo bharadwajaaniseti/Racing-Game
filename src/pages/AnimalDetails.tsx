@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Heart, Package, ArrowLeft, Info as InfoIcon } from 'lucide-react'
+import { ArrowLeft, Info as InfoIcon } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useBarn } from '../store/useBarn'
 import { useRealTimeHunger } from '../lib/useRealTimeHunger'
@@ -75,10 +75,14 @@ export function AnimalDetails() {
   const fetchAnimalDetails = async () => {
     setLoading(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { data: animalData, error: animalError } = await supabase
-        .from('animals_with_hunger')
+        .from('animals')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single()
 
       if (animalError) throw animalError
@@ -201,7 +205,7 @@ export function AnimalDetails() {
             }`}>
               <HungerBar
                 currentLevel={getHungerLevel(animal.id)}
-                hungerRate={animal.effective_hunger_rate || 1}
+                hungerRate={animal.hunger_rate || 1}
                 size="lg"
                 animated={true}
                 showLabel={true}

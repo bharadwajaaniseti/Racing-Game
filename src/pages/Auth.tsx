@@ -180,7 +180,7 @@ export function Auth() {
                 <button
                   onClick={() => {
                     setStep('signup')
-                    setError(null)
+                    useUser.setState({ error: null })
                     setMessage('')
                   }}
                   className="text-cyan-400 hover:text-cyan-300 font-medium"
@@ -194,7 +194,7 @@ export function Auth() {
                 <button
                   onClick={() => {
                     setStep('signin')
-                    setError(null)
+                    useUser.setState({ error: null })
                     setMessage('')
                   }}
                   className="text-cyan-400 hover:text-cyan-300 font-medium"

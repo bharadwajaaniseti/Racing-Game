@@ -175,9 +175,11 @@ export function Barn() {
                       <div className="mb-4">
                         <HungerBar
                           currentLevel={getHungerLevel(animal.id)}
-                          hungerRate={animal.effective_hunger_rate || 1}
-                          size="sm"
+                          hungerRate={animal.hunger_rate || 1}
+                          size="lg"
                           animated={true}
+                          showLabel={true}
+                          showRate={true}
                         />
                       </div>
 

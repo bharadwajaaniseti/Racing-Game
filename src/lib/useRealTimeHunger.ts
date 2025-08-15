@@ -21,8 +21,8 @@ export function useRealTimeHunger(
 
   // Calculate interpolated hunger level based on time passed
   const calculateCurrentHunger = (animal: Animal): number => {
-    if (!animal.last_fed || !animal.effective_hunger_rate) {
-      return animal.current_hunger_level || 100
+    if (!animal.last_fed || !animal.hunger_rate) {
+      return animal.hunger_level || 100
     }
 
     const lastFedTime = new Date(animal.last_fed).getTime()
@@ -30,7 +30,7 @@ export function useRealTimeHunger(
     const minutesPassed = (now - lastFedTime) / (1000 * 60) // Convert to minutes
     
     // Calculate hunger decrease
-    const hungerDecrease = minutesPassed * animal.effective_hunger_rate
+    const hungerDecrease = minutesPassed * animal.hunger_rate
     const currentHunger = Math.max(0, (animal.hunger_level || 100) - hungerDecrease)
     
     return Math.round(currentHunger * 10) / 10 // Round to 1 decimal place
@@ -55,8 +55,8 @@ export function useRealTimeHunger(
     try {
       const animalIds = animals.map(a => a.id)
       const { data, error } = await supabase
-        .from('animals_with_hunger')
-        .select('id, hunger_level, last_fed, effective_hunger_rate')
+        .from('animals')
+        .select('id, hunger_level, last_fed, hunger_rate')
         .in('id', animalIds)
 
       if (error) throw error
