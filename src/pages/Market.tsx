@@ -186,7 +186,9 @@ export function Market() {
                         ? 'border-cyan-500 bg-cyan-500/20'
                         : 'border-cyan-500/30 hover:border-cyan-400/50'
                     }`}
-                    onClick={() => setSelectedAnimal(animal)}
+                    onClick={() => {
+                      setSelectedAnimal(animal)
+                    }}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div>

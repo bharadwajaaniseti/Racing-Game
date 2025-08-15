@@ -9,7 +9,7 @@ interface InventoryItem extends MarketItem {
 }
 
 interface InventoryState {
-  items: { [key: string]: number }
+  items: { [key: string]: InventoryItem }
   loading: boolean
   error: string | null
   fetchInventory: () => Promise<void>
@@ -34,12 +34,22 @@ export const useInventory = create<InventoryState>((set, get) => ({
 
       if (error) throw error
 
-      const itemCounts = inventoryItems.reduce((acc, item) => {
-        acc[item.item_name] = item.quantity
-        return acc
-      }, {} as { [key: string]: number })
+      // Get market items to merge with inventory
+      const marketItems = useMarket.getState().marketItems
 
-      set({ items: itemCounts, loading: false })
+      // Create inventory map with full item details
+      const inventoryMap = inventoryItems.reduce((acc, invItem) => {
+        const marketItem = marketItems.find(m => m.name === invItem.item_name)
+        if (marketItem) {
+          acc[invItem.item_name] = {
+            ...marketItem,
+            quantity: invItem.quantity
+          }
+        }
+        return acc
+      }, {} as { [key: string]: InventoryItem })
+
+      set({ items: inventoryMap, loading: false })
     } catch (error) {
       set({ error: (error as Error).message, loading: false })
     }

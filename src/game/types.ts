@@ -43,6 +43,9 @@ export interface Animal {
   model_rotation?: number
   idle_anim?: string
   run_anim?: string
+  walk_anim?: string
+  eat_anim?: string
+  hunger_level?: number
   isPurchased?: boolean
 }
 
@@ -71,6 +74,10 @@ export interface RaceState {
   race: Race | null
   isRacing: boolean
   raceResults: RaceAnimal[]
+}
+
+export interface InventoryItem extends MarketItem {
+  quantity: number
 }
 
 export interface TrainingResult {

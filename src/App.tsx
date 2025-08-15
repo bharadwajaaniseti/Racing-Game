@@ -9,9 +9,10 @@ import { Home } from './pages/Home'
 import { Auth } from './pages/Auth'
 import { Admin } from './pages/Admin'
 import { Market } from './pages/Market'
-import Barn from './pages/Barn'
+import { Barn } from './pages/Barn'
 import { Race } from './pages/Race'
 import { Leaderboard } from './pages/Leaderboard'
+import { AnimalDetails } from './pages/AnimalDetails'
 
 function AuthHandler() {
   const [searchParams] = useSearchParams()
@@ -108,6 +109,10 @@ function App() {
           <Route 
             path="/barn" 
             element={user ? <Barn /> : <Navigate to="/auth" replace />} 
+          />
+          <Route 
+            path="/animal/:id" 
+            element={user ? <AnimalDetails /> : <Navigate to="/auth" replace />} 
           />
           <Route 
             path="/race" 

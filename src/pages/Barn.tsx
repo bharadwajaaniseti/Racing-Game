@@ -4,12 +4,14 @@ import { useUser } from '../store/useUser'
 import { useBarn } from '../store/useBarn'
 import { useInventory } from '../store/useInventory'
 import { useMarket } from '../store/useMarket'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import type { ItemType, MarketItem } from '../game/types'
 
-export default function Barn() {
+// Changed to named export and removed default
+export function Barn() {
   const { user } = useUser()
+  const navigate = useNavigate()
   const { 
     animals, 
     loading, 
@@ -32,7 +34,8 @@ export default function Barn() {
     }
   }, [user, fetchAnimals, fetchInventory, fetchMarketItems])
 
-  const handleTrain = async (animalId: string, stat: string) => {
+  const handleTrain = async (animalId: string, stat: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setActionLoading(animalId + '-' + stat)
     const result = await trainAnimal(animalId, stat)
     setActionMessage(result.message)
@@ -40,7 +43,8 @@ export default function Barn() {
     setActionLoading(null)
   }
 
-  const handleFeed = async (animalId: string) => {
+  const handleFeed = async (animalId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setActionLoading(animalId + '-feed')
     const result = await feedAnimal(animalId)
     setActionMessage(result.message)
@@ -148,7 +152,8 @@ export default function Barn() {
                 {animals.map((animal) => (
                   <div
                     key={animal.id}
-                    className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all"
+                    className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all cursor-pointer"
+                    onClick={() => navigate(`/animal/${animal.id}`)}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-xl font-bold text-white">{animal.name}</h3>
@@ -196,7 +201,7 @@ export default function Barn() {
                               {stat.value}
                             </span>
                             <button
-                              onClick={() => handleTrain(animal.id, stat.key)}
+                              onClick={(e) => handleTrain(animal.id, stat.key, e)}
                               disabled={actionLoading === `${animal.id}-${stat.key}`}
                               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
                             >
@@ -209,7 +214,7 @@ export default function Barn() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleFeed(animal.id)}
+                        onClick={(e) => handleFeed(animal.id, e)}
                         disabled={actionLoading === `${animal.id}-feed`}
                         className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-2 rounded-lg font-medium transition-all flex items-center justify-center space-x-2"
                       >
@@ -373,4 +378,3 @@ export default function Barn() {
     </div>
   )
 }
-
