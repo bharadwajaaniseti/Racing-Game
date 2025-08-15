@@ -49,6 +49,7 @@ export interface Animal {
   hunger_rate?: number
   market_hunger_rate?: number
   effective_hunger_rate?: number
+  current_hunger_level?: number
   last_fed?: string
   isPurchased?: boolean
 }

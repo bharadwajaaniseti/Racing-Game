@@ -149,43 +149,27 @@ export const useMarket = create<MarketState>((set, get) => ({
       const { userGold } = get()
       if (userGold < price) throw new Error('Insufficient gold')
 
-      // Get the market animal
-      const { data: marketAnimal, error: fetchError } = await supabase
+      // Call the buy_animal function to properly copy all attributes including hunger_rate
+      const { error: purchaseError } = await supabase
+        .rpc('buy_animal', {
+          p_market_id: animalId
+        })
+
+      if (purchaseError) throw purchaseError
+
+      // Refresh user gold after purchase (buy_animal function handles the deduction)
+      await get().fetchUserGold()
+
+      set({ loading: false })
+      
+      // Get the purchased animal name for the success message
+      const { data: marketAnimal } = await supabase
         .from('market_animals')
-        .select('*')
+        .select('name')
         .eq('id', animalId)
         .single()
 
-      if (fetchError) throw fetchError
-
-      // Create the animal for the user
-      const { error: createError } = await supabase
-        .from('animals')
-        .insert([{
-          user_id: user.id,
-          name: marketAnimal.name,
-          type: marketAnimal.type,
-          speed: marketAnimal.speed,
-          acceleration: marketAnimal.acceleration,
-          stamina: marketAnimal.stamina,
-          temper: marketAnimal.temper,
-          level: marketAnimal.level,
-          experience: 0
-        }])
-
-      if (createError) throw createError
-
-      // Update user's gold
-      const newGold = userGold - price
-      const { error: updateError } = await supabase
-        .from('user_currency')
-        .update({ gold: newGold })
-        .eq('user_id', user.id)
-
-      if (updateError) throw updateError
-
-      set({ userGold: newGold, loading: false })
-      toast.success(`Successfully purchased ${marketAnimal.name}!`)
+      toast.success(`Successfully purchased ${marketAnimal?.name || 'animal'}!`)
     } catch (error) {
       const message = (error as Error).message
       set({ error: message, loading: false })

@@ -46,7 +46,7 @@ export function AnimalDetails() {
   useEffect(() => {
     if (!animal || loading) return;
 
-    // Fetch updated animal data every minute
+    // Fetch updated animal data every 10 seconds for smoother updates
     const refreshInterval = setInterval(async () => {
       const { data: updatedAnimal, error } = await supabase
         .from('animals_with_hunger')
@@ -57,7 +57,7 @@ export function AnimalDetails() {
       if (!error && updatedAnimal) {
         setAnimal(updatedAnimal);
       }
-    }, 30000); // Refresh every 30 seconds
+    }, 10000); // Refresh every 10 seconds
 
     return () => clearInterval(refreshInterval);
   }, [animal?.id, loading]);
@@ -207,7 +207,7 @@ export function AnimalDetails() {
 
             {/* Hunger Level */}
             <div className={`bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border ${
-              (animal.hunger_level ?? 0) <= 30 ? 'border-red-500/50' : 'border-cyan-500/30'
+              (animal.current_hunger_level ?? 0) <= 30 ? 'border-red-500/50' : 'border-cyan-500/30'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <div>
@@ -217,21 +217,21 @@ export function AnimalDetails() {
                   </p>
                 </div>
                 <span className={`text-sm font-medium ${
-                  (animal.hunger_level ?? 0) > 70 ? 'text-green-400' :
-                  (animal.hunger_level ?? 0) > 30 ? 'text-yellow-400' :
+                  (animal.current_hunger_level ?? 0) > 70 ? 'text-green-400' :
+                  (animal.current_hunger_level ?? 0) > 30 ? 'text-yellow-400' :
                   'text-red-400'
                 }`}>
-                  {animal.hunger_level ?? 0}%
+                  {animal.current_hunger_level ?? 0}%
                 </span>
               </div>
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all ${
-                    (animal.hunger_level ?? 0) > 70 ? 'bg-green-500' :
-                    (animal.hunger_level ?? 0) > 30 ? 'bg-yellow-500' :
+                    (animal.current_hunger_level ?? 0) > 70 ? 'bg-green-500' :
+                    (animal.current_hunger_level ?? 0) > 30 ? 'bg-yellow-500' :
                     'bg-red-500'
                   }`}
-                  style={{ width: `${animal.hunger_level ?? 0}%` }}
+                  style={{ width: `${animal.current_hunger_level ?? 0}%` }}
                 />
               </div>
               {(animal.hunger_level ?? 0) <= 30 && (
@@ -426,7 +426,7 @@ export function AnimalDetails() {
                       <span className="text-green-400">+{item.effect_value}</span>
                       <button
                         onClick={() => handleFeedAnimal(item.id, item.effect_value)}
-                        disabled={feeding || (animal.hunger_level ?? 0) >= 100}
+                        disabled={feeding || (animal.current_hunger_level ?? 0) >= 100}
                         className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm font-medium transition-colors"
                       >
                         {feeding ? 'Feeding...' : 'Feed'}
