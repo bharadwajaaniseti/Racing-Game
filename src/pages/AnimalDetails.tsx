@@ -289,10 +289,9 @@ export function AnimalDetails() {
                         <button
                           key={animName}
                           onClick={() => {
-                            console.log('Setting animation to:', animName);
                             setCurrentAnimation(animName);
-                            // Force a re-render by updating the key
                             setIsPlayingAnimation(prev => !prev);
+                            setViewMode('model'); // Switch back to model view
                           }}
                           className={`p-3 rounded-lg border transition-colors ${
                             currentAnimation === animName
