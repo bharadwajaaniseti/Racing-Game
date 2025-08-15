@@ -166,18 +166,20 @@ export const useBarn = create<BarnState>((set, get) => ({
       if (animalError || !animalData) throw new Error('Animal not found or unauthorized')
       const animal = animalData
 
-      // Check for training items
-      const { data: training, error: invError } = await supabase
-        .from('inventory')
+      // Check for training items in user_inventory
+      const { data: trainingItems, error: invError } = await supabase
+        .from('user_inventory')
         .select('*')
-        .eq('item_type', 'training')
+        .eq('user_id', user.id)
+        .ilike('item_name', '%training%') // Look for items with "training" in name
         .gt('quantity', 0)
         .limit(1)
-        .single()
 
-      if (invError || !training) {
-        throw new Error('No training items available')
+      if (invError || !trainingItems || trainingItems.length === 0) {
+        throw new Error('No training items available! Visit the Market to buy training items.')
       }
+
+      const trainingItem = trainingItems[0]
 
       // Calculate training result
       const baseGain = Math.floor(Math.random() * 3) + 1 // 1-3 stat gain
@@ -200,11 +202,20 @@ export const useBarn = create<BarnState>((set, get) => ({
 
       if (updateError) throw updateError
 
-      // Update inventory
-      await supabase
-        .from('inventory')
-        .update({ quantity: training.quantity - 1 })
-        .eq('id', training.id)
+      // Update inventory - remove one training item
+      if (trainingItem.quantity === 1) {
+        // Delete the record if this was the last item
+        await supabase
+          .from('user_inventory')
+          .delete()
+          .eq('id', trainingItem.id)
+      } else {
+        // Decrease quantity by 1
+        await supabase
+          .from('user_inventory')
+          .update({ quantity: trainingItem.quantity - 1 })
+          .eq('id', trainingItem.id)
+      }
 
       // Update local state by refreshing from animals_with_hunger view
       const { data: refreshedAnimals } = await supabase
@@ -247,47 +258,68 @@ export const useBarn = create<BarnState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // First verify the animal belongs to the user
+      // First verify the animal belongs to the user and get current hunger
       const { data: animalData, error: animalError } = await supabase
-        .from('animals')
+        .from('animals_with_hunger')
         .select('*')
         .eq('id', animalId)
         .eq('user_id', user.id)
         .single()
 
       if (animalError || !animalData) throw new Error('Animal not found or unauthorized')
-      const animal = animalData
-
-      // Check for food items
-      const { data: food, error: invError } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('item_type', 'food')
-        .gt('quantity', 0)
-        .limit(1)
-        .single()
-
-      if (invError || !food) {
-        throw new Error('No food items available')
+      
+      const currentHunger = animalData.current_hunger_level || 0
+      if (currentHunger >= 100) {
+        throw new Error('Animal is not hungry!')
       }
 
-      // Calculate feeding result
-      const staminaGain = Math.floor(Math.random() * 10) + 5 // 5-14 stamina gain
-      const newStamina = Math.min(100, animal.stamina + staminaGain)
+      // Check for food items in user_inventory - look for common food item names
+      const { data: foodItems, error: invError } = await supabase
+        .from('user_inventory')
+        .select('*')
+        .eq('user_id', user.id)
+        .gt('quantity', 0)
+        .or('item_name.ilike.*food*,item_name.ilike.*clover*,item_name.ilike.*carrot*,item_name.ilike.*apple*,item_name.ilike.*hay*,item_name.ilike.*grass*,item_name.ilike.*energy*')
+        .limit(1)
 
-      // Update animal
-      const { error: updateError } = await supabase
-        .from('animals')
-        .update({ stamina: newStamina })
-        .eq('id', animalId)
+      if (invError || !foodItems || foodItems.length === 0) {
+        throw new Error('No food items available! Visit the Market to buy food.')
+      }
 
-      if (updateError) throw updateError
+      const foodItem = foodItems[0]
+      
+      // Get the item details from market to know the effect value
+      const { data: marketItemData } = await supabase
+        .from('market_items')
+        .select('effect_value')
+        .eq('name', foodItem.item_name)
+        .eq('type', 'food')
+        .single()
 
-      // Update inventory
-      await supabase
-        .from('inventory')
-        .update({ quantity: food.quantity - 1 })
-        .eq('id', food.id)
+      const hungerRecovery = marketItemData?.effect_value || 10 // Default 10 points for common food items
+
+      // Use the feed_animal database function
+      const { error: feedError } = await supabase.rpc('feed_animal', {
+        animal_id: animalId,
+        amount: hungerRecovery
+      })
+
+      if (feedError) throw feedError
+
+      // Remove one food item from inventory
+      if (foodItem.quantity === 1) {
+        // Delete the record if this was the last item
+        await supabase
+          .from('user_inventory')
+          .delete()
+          .eq('id', foodItem.id)
+      } else {
+        // Decrease quantity by 1
+        await supabase
+          .from('user_inventory')
+          .update({ quantity: foodItem.quantity - 1 })
+          .eq('id', foodItem.id)
+      }
 
       // Update local state by refreshing from animals_with_hunger view
       const { data: refreshedAnimals } = await supabase
@@ -302,12 +334,17 @@ export const useBarn = create<BarnState>((set, get) => ({
         set({ loading: false })
       }
 
-      const message = `${animal.name} gained ${staminaGain} stamina!`
+      // Calculate final hunger level for display
+      const finalHunger = Math.min(100, currentHunger + hungerRecovery)
+      const message = finalHunger >= 100 ? 
+        `${animalData.name} is now fully fed!` :
+        `Fed ${animalData.name}! Hunger restored by ${hungerRecovery} points.`
+
       toast.success(message)
 
       return {
         success: true,
-        staminaGain,
+        staminaGain: 0, // This is now hunger gain, but keeping interface
         message
       }
     } catch (error) {

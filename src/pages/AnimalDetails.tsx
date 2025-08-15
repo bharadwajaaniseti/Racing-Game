@@ -2,19 +2,19 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Heart, Package, ArrowLeft, Info as InfoIcon } from 'lucide-react'
 import { useUser } from '../store/useUser'
-import { useInventory } from '../store/useInventory'
+import { useBarn } from '../store/useBarn'
 import { useRealTimeHunger } from '../lib/useRealTimeHunger'
 import { HungerBar } from '../components/HungerBar'
 import { ModelViewer2 as ModelViewer } from '../components/ModelViewer2'
 import { supabase } from '../lib/supabase'
-import type { Animal, InventoryItem } from '../game/types'
+import type { Animal } from '../game/types'
 import toast from 'react-hot-toast'
 
 export function AnimalDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useUser()
-  const { items: inventory, fetchInventory } = useInventory()
+  const { feedAnimal } = useBarn() // Use barn store for consistent feeding
   
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [loading, setLoading] = useState(true)
@@ -23,6 +23,7 @@ export function AnimalDetails() {
   const [viewMode, setViewMode] = useState<'model' | 'animations'>('model')
   const [showInfo, setShowInfo] = useState(false)
   const [availableAnimations, setAvailableAnimations] = useState<string[]>([])
+  const [userInventoryItems, setUserInventoryItems] = useState<any[]>([])
 
   // Real-time hunger tracking for single animal
   const { getHungerLevel } = useRealTimeHunger(
@@ -30,22 +31,46 @@ export function AnimalDetails() {
     { updateInterval: 5000, enabled: !loading }
   )
 
-  const foodItems = Object.entries(inventory || {}).reduce<InventoryItem[]>((acc, [id, item]) => {
-    if (item.type === 'food') acc.push({ ...item, id })
-    return acc
-  }, [])
+  // Get food and other items from user_inventory
+  const foodItems = userInventoryItems.filter(item => 
+    item.item_name?.toLowerCase().includes('clover') || 
+    item.item_name?.toLowerCase().includes('food') || 
+    item.item_name?.toLowerCase().includes('carrot') ||
+    item.item_name?.toLowerCase().includes('apple') ||
+    item.item_name?.toLowerCase().includes('hay') ||
+    item.item_name?.toLowerCase().includes('grass') ||  // Add grass for Green Grass
+    item.item_name?.toLowerCase().includes('energy') || // Add energy for Energy Bar
+    item.item_name?.toLowerCase().includes('boost')     // Add boost items that might be food
+  )
 
-  const otherItems = Object.entries(inventory || {}).reduce<InventoryItem[]>((acc, [id, item]) => {
-    if (item.type !== 'food') acc.push({ ...item, id })
-    return acc
-  }, [])
+  const otherItems = userInventoryItems.filter(item => 
+    !foodItems.includes(item) // Only items not already classified as food
+  )
 
   useEffect(() => {
     if (user && id) {
       fetchAnimalDetails()
-      fetchInventory()
+      fetchUserInventory()
     }
-  }, [user, id, fetchInventory])
+  }, [user, id])
+
+  const fetchUserInventory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabase
+        .from('user_inventory')
+        .select('*')
+        .eq('user_id', user.id)
+        .gt('quantity', 0)
+
+      if (error) throw error
+      setUserInventoryItems(data || [])
+    } catch (error) {
+      console.error('Error fetching user inventory:', error)
+    }
+  }
 
   const fetchAnimalDetails = async () => {
     setLoading(true)
@@ -68,7 +93,7 @@ export function AnimalDetails() {
     }
   }
 
-  const handleFeedAnimal = async (foodId: string, recoveryAmount: number) => {
+  const handleFeedAnimal = async () => {
     if (!animal || feeding) return
     const currentHunger = getHungerLevel(animal.id)
     if (currentHunger >= 100) {
@@ -78,40 +103,19 @@ export function AnimalDetails() {
 
     setFeeding(true)
     try {
-      // First delete the food item from inventory
-      const { error: inventoryError } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', foodId)
-      if (inventoryError) throw inventoryError
-
-      // Use the server-side function to feed the animal
-      const { error: feedError } = await supabase.rpc('feed_animal', {
-        animal_id: animal.id,
-        amount: recoveryAmount
-      })
-      if (feedError) throw feedError
-
-      // Fetch the updated animal data
-      const { data: updatedAnimal, error: fetchError } = await supabase
-        .from('animals_with_hunger')
-        .select('*')
-        .eq('id', animal.id)
-        .single()
+      // Use the barn store's feedAnimal function for consistency
+      const result = await feedAnimal(animal.id)
       
-      if (fetchError) throw fetchError
-      setAnimal(updatedAnimal)
-      fetchInventory()
-      
-      // Show different messages based on hunger level
-      if (updatedAnimal.hunger_level >= 100) {
-        toast.success('Your animal is fully fed!')
-      } else {
-        toast.success(`Fed your animal! Hunger restored by ${recoveryAmount}%`)
+      if (result.success) {
+        // Refresh animal data to get updated hunger info
+        await fetchAnimalDetails()
+        
+        // Play eating animation
+        setCurrentAnimation('Eating')
+        
+        // Refresh inventory to show updated food count
+        fetchUserInventory()
       }
-
-      // Play eating animation
-      setCurrentAnimation('Eating')
     } catch (error: any) {
       toast.error('Failed to feed animal')
       console.error('Error:', error)
@@ -372,17 +376,25 @@ export function AnimalDetails() {
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="font-bold text-white">{item.name}</h4>
-                        <p className="text-sm text-gray-400">{item.description}</p>
+                        <h4 className="font-bold text-white">{item.item_name}</h4>
+                        <p className="text-sm text-gray-400">Quantity: {item.quantity}</p>
                       </div>
                       <span className="px-2 py-1 rounded text-xs bg-green-600 text-white">
                         Food
                       </span>
                     </div>
                     <div className="mt-2 flex justify-between items-center">
-                      <span className="text-green-400">+{item.effect_value}</span>
+                      <span className="text-green-400">
+                        {item.item_name === 'Lucky Clover' ? '+5' : 
+                         item.item_name === 'Green Grass' ? '+10' : 
+                         item.item_name === 'Energy Bar' ? '+10' :
+                         item.item_name === 'Golden Apple' ? '+10' :
+                         item.item_name === 'Speed Boost' ? '+15' :
+                         item.item_name === 'Power Carrot' ? '+15' :
+                         'Restores hunger'}
+                      </span>
                       <button
-                        onClick={() => handleFeedAnimal(item.id, item.effect_value)}
+                        onClick={() => handleFeedAnimal()}
                         disabled={feeding || getHungerLevel(animal.id) >= 100}
                         className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm font-medium transition-colors"
                       >
@@ -408,15 +420,13 @@ export function AnimalDetails() {
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="font-bold text-white">{item.name}</h4>
-                        <p className="text-sm text-gray-400">{item.description}</p>
+                        <h4 className="font-bold text-white">{item.item_name}</h4>
+                        <p className="text-sm text-gray-400">Quantity: {item.quantity}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs capitalize ${
-                        item.type === 'training' ? 'bg-blue-600' :
-                        item.type === 'boost' ? 'bg-purple-600' :
-                        'bg-pink-600'
-                      } text-white`}>
-                        {item.type}
+                      <span className={`px-2 py-1 rounded text-xs capitalize text-white ${
+                        item.item_name?.toLowerCase().includes('training') ? 'bg-blue-600' : 'bg-purple-600'
+                      }`}>
+                        {item.item_name?.toLowerCase().includes('training') ? 'Training' : 'Item'}
                       </span>
                     </div>
                   </div>

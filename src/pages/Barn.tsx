@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase';
+import { useBarn } from '../store/useBarn';
+import { useRealTimeHunger } from '../lib/useRealTimeHunger';
+import { HungerBar } from '../components/HungerBar';
 import { Zap, Heart, Gauge, Brain, Star, Award, ShoppingCart, Package } from 'lucide-react'
 import { useUser } from '../store/useUser'
-import { useBarn } from '../store/useBarn'
 import { useInventory } from '../store/useInventory'
 import { useMarket } from '../store/useMarket'
-import { useRealTimeHunger } from '../lib/useRealTimeHunger'
-import { HungerBar } from '../components/HungerBar'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import type { ItemType, MarketItem } from '../game/types'
@@ -19,8 +20,7 @@ export function Barn() {
     loading, 
     error, 
     fetchAnimals, 
-    trainAnimal, 
-    feedAnimal 
+    trainAnimal 
   } = useBarn()
   const { items, loading: inventoryLoading, fetchInventory } = useInventory()
   const { fetchMarketItems } = useMarket()
@@ -29,10 +29,7 @@ export function Barn() {
   const [activeTab, setActiveTab] = useState<'animals' | 'items' | 'food'>('animals')
 
   // Real-time hunger tracking
-  const { getHungerLevel, getHungerStatus } = useRealTimeHunger(animals, {
-    updateInterval: 5000, // Update every 5 seconds
-    enabled: activeTab === 'animals' // Only update when viewing animals
-  })
+  const { getHungerLevel } = useRealTimeHunger(animals)
 
   useEffect(() => {
     if (user) {
@@ -46,15 +43,6 @@ export function Barn() {
     e?.stopPropagation()
     setActionLoading(animalId + '-' + stat)
     const result = await trainAnimal(animalId, stat)
-    setActionMessage(result.message)
-    setTimeout(() => setActionMessage(''), 3000)
-    setActionLoading(null)
-  }
-
-  const handleFeed = async (animalId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setActionLoading(animalId + '-feed')
-    const result = await feedAnimal(animalId)
     setActionMessage(result.message)
     setTimeout(() => setActionMessage(''), 3000)
     setActionLoading(null)
@@ -232,15 +220,13 @@ export function Barn() {
                       ))}
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => handleFeed(animal.id, e)}
-                        disabled={actionLoading === `${animal.id}-feed`}
-                        className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-2 rounded-lg font-medium transition-all flex items-center justify-center space-x-2"
-                      >
-                        <Heart className="h-4 w-4" />
-                        <span>{actionLoading === `${animal.id}-feed` ? 'Feeding...' : 'Feed'}</span>
-                      </button>
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-gray-400 mb-2">
+                        Click on the animal to view details and feed
+                      </p>
+                      <div className="text-xs text-cyan-400">
+                        💡 Feeding available in Animal Details
+                      </div>
                     </div>
                   </div>
                 ))}
