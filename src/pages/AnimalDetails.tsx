@@ -290,7 +290,6 @@ export function AnimalDetails() {
                           onClick={() => {
                             console.log('Setting animation to:', animName);
                             setCurrentAnimation(animName);
-                            setIsPlayingAnimation(true);
                           }}
                           className={`p-3 rounded-lg border transition-colors ${
                             currentAnimation === animName
@@ -309,11 +308,18 @@ export function AnimalDetails() {
                       )}
                     </div>
                   </div>
-                  <div className="p-4 border-t border-gray-700 flex justify-end">
+                  <div className="p-4 border-t border-gray-700 flex justify-between items-center">
                     <button
                       onClick={() => {
                         setCurrentAnimation("");
-                        setIsPlayingAnimation(false);
+                      }}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Stop Animation
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentAnimation("");
                         setViewMode('model');
                       }}
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
