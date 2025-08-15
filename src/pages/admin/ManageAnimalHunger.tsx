@@ -52,7 +52,7 @@ export default function ManageAnimalHunger() {
           : animal
       ));
 
-      toast.success('Hunger rate updated successfully');
+      toast.success('Hunger rate updated successfully! 📢 Users will be notified of this change.');
     } catch (error: any) {
       toast.error('Failed to update hunger rate');
       console.error('Error:', error);
@@ -73,6 +73,18 @@ export default function ManageAnimalHunger() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8">Manage Animal Hunger Rates</h1>
+        
+        {/* Notification Info Box */}
+        <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+          <div className="flex items-center space-x-2 text-blue-400">
+            <span className="text-xl">🔔</span>
+            <h3 className="font-semibold">User Notifications Enabled</h3>
+          </div>
+          <p className="text-blue-300 mt-2 text-sm">
+            When you change hunger rates, affected users will receive real-time notifications 
+            via toast messages and browser notifications (if enabled).
+          </p>
+        </div>
         
         <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           <table className="w-full">

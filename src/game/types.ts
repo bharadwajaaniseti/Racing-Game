@@ -92,6 +92,26 @@ export interface TrainingResult {
   message: string
 }
 
+export interface EnhancedTrainingResult extends TrainingResult {
+  successRate?: number
+  cooldownSeconds?: number
+  cooldownRemaining?: number
+  newStatValue?: number
+  newLevel?: number
+  multiStat?: boolean
+}
+
+export interface TrainingSession {
+  id: string
+  animal_id: string
+  training_item_name: string
+  stat_trained: string
+  stat_gain: number
+  experience_gain: number
+  training_date: string
+  success_rate: number
+}
+
 export interface FeedingResult {
   success: boolean
   staminaGain: number
