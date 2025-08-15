@@ -254,6 +254,7 @@ export function AnimalDetails() {
             <div className="relative">
               <div className="h-[500px] rounded-lg overflow-hidden">
                 <ModelViewer
+                  key={`${animal.id}-${currentAnimation}-${isPlayingAnimation}`}
                   animal={{
                     ...animal,
                     position: { x: 0, y: 0, z: 0 },
@@ -290,6 +291,8 @@ export function AnimalDetails() {
                           onClick={() => {
                             console.log('Setting animation to:', animName);
                             setCurrentAnimation(animName);
+                            // Force a re-render by updating the key
+                            setIsPlayingAnimation(prev => !prev);
                           }}
                           className={`p-3 rounded-lg border transition-colors ${
                             currentAnimation === animName
@@ -312,6 +315,7 @@ export function AnimalDetails() {
                     <button
                       onClick={() => {
                         setCurrentAnimation("");
+                        setIsPlayingAnimation(false);
                       }}
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
                     >
@@ -321,6 +325,7 @@ export function AnimalDetails() {
                       onClick={() => {
                         setCurrentAnimation("");
                         setViewMode('model');
+                        setIsPlayingAnimation(false);
                       }}
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
                     >

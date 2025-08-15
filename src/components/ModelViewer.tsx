@@ -181,11 +181,11 @@ function GLBAnimal({
   const pickedClipName = pickClipName();
   React.useEffect(() => {
     if (!pickedClipName || Object.keys(actions.current).length === 0) return;
-    // Always play the animation if it's forced, even if it's the same as last
-    if (lastClip.current !== pickedClipName || (forcedAnimation && pickedClipName)) {
+    // Always play the animation if it's forced, or if it's different from last
+    if (lastClip.current !== pickedClipName || forcedAnimation) {
       playExclusive(pickedClipName);
     }
-  }, [pickedClipName, forcedAnimation]);
+  }, [pickedClipName, forcedAnimation, actions.current]);
 
   // Drive transform from physics each frame
   useFrame(() => {
