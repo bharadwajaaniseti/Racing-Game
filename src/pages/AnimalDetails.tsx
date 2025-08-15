@@ -2,18 +2,18 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Heart, Package, ArrowLeft, Info as InfoIcon } from 'lucide-react'
 import { useUser } from '../store/useUser'
-import { useBarn } from '../store/useBarn'
 import { useInventory } from '../store/useInventory'
+import { useRealTimeHunger } from '../lib/useRealTimeHunger'
+import { HungerBar } from '../components/HungerBar'
 import { ModelViewer2 as ModelViewer } from '../components/ModelViewer2'
 import { supabase } from '../lib/supabase'
-import type { Animal, MarketItem, InventoryItem } from '../game/types'
+import type { Animal, InventoryItem } from '../game/types'
 import toast from 'react-hot-toast'
 
 export function AnimalDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useUser()
-  const { animals, fetchAnimals } = useBarn()
   const { items: inventory, fetchInventory } = useInventory()
   
   const [animal, setAnimal] = useState<Animal | null>(null)
@@ -23,7 +23,12 @@ export function AnimalDetails() {
   const [viewMode, setViewMode] = useState<'model' | 'animations'>('model')
   const [showInfo, setShowInfo] = useState(false)
   const [availableAnimations, setAvailableAnimations] = useState<string[]>([])
-  const [refreshInterval, setRefreshInterval] = useState<number | null>(null)
+
+  // Real-time hunger tracking for single animal
+  const { getHungerLevel } = useRealTimeHunger(
+    animal ? [animal] : [], 
+    { updateInterval: 5000, enabled: !loading }
+  )
 
   const foodItems = Object.entries(inventory || {}).reduce<InventoryItem[]>((acc, [id, item]) => {
     if (item.type === 'food') acc.push({ ...item, id })
@@ -41,26 +46,6 @@ export function AnimalDetails() {
       fetchInventory()
     }
   }, [user, id, fetchInventory])
-
-  // Periodic refresh to update the displayed hunger level
-  useEffect(() => {
-    if (!animal || loading) return;
-
-    // Fetch updated animal data every 10 seconds for smoother updates
-    const refreshInterval = setInterval(async () => {
-      const { data: updatedAnimal, error } = await supabase
-        .from('animals_with_hunger')
-        .select('*')
-        .eq('id', animal.id)
-        .single();
-
-      if (!error && updatedAnimal) {
-        setAnimal(updatedAnimal);
-      }
-    }, 10000); // Refresh every 10 seconds
-
-    return () => clearInterval(refreshInterval);
-  }, [animal?.id, loading]);
 
   const fetchAnimalDetails = async () => {
     setLoading(true)
@@ -85,7 +70,8 @@ export function AnimalDetails() {
 
   const handleFeedAnimal = async (foodId: string, recoveryAmount: number) => {
     if (!animal || feeding) return
-    if (animal.hunger_level >= 100) {
+    const currentHunger = getHungerLevel(animal.id)
+    if (currentHunger >= 100) {
       toast.error('Animal is not hungry!')
       return
     }
@@ -205,47 +191,18 @@ export function AnimalDetails() {
               </div>
             </div>
 
-            {/* Hunger Level */}
+            {/* Hunger Level - Real-time updating */}
             <div className={`bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border ${
-              (animal.current_hunger_level ?? 0) <= 30 ? 'border-red-500/50' : 'border-cyan-500/30'
+              getHungerLevel(animal.id) <= 30 ? 'border-red-500/50' : 'border-cyan-500/30'
             }`}>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h3 className="font-bold text-white">Hunger Level</h3>
-                  <p className="text-sm text-gray-400">
-                    Decreases by {animal.effective_hunger_rate} points per minute
-                  </p>
-                </div>
-                <span className={`text-sm font-medium ${
-                  (animal.current_hunger_level ?? 0) > 70 ? 'text-green-400' :
-                  (animal.current_hunger_level ?? 0) > 30 ? 'text-yellow-400' :
-                  'text-red-400'
-                }`}>
-                  {animal.current_hunger_level ?? 0}%
-                </span>
-              </div>
-              <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all ${
-                    (animal.current_hunger_level ?? 0) > 70 ? 'bg-green-500' :
-                    (animal.current_hunger_level ?? 0) > 30 ? 'bg-yellow-500' :
-                    'bg-red-500'
-                  }`}
-                  style={{ width: `${animal.current_hunger_level ?? 0}%` }}
-                />
-              </div>
-              {(animal.hunger_level ?? 0) <= 30 && (
-                <div className="mt-3 text-sm text-red-400 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  {(animal.hunger_level ?? 0) <= 0 ? (
-                    <span>Too hungry to race! Feed immediately!</span>
-                  ) : (
-                    <span>Low hunger! Feed soon to maintain racing ability.</span>
-                  )}
-                </div>
-              )}
+              <HungerBar
+                currentLevel={getHungerLevel(animal.id)}
+                hungerRate={animal.effective_hunger_rate || 1}
+                size="lg"
+                animated={true}
+                showLabel={true}
+                showRate={true}
+              />
             </div>
           </div>
 
@@ -426,7 +383,7 @@ export function AnimalDetails() {
                       <span className="text-green-400">+{item.effect_value}</span>
                       <button
                         onClick={() => handleFeedAnimal(item.id, item.effect_value)}
-                        disabled={feeding || (animal.current_hunger_level ?? 0) >= 100}
+                        disabled={feeding || getHungerLevel(animal.id) >= 100}
                         className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm font-medium transition-colors"
                       >
                         {feeding ? 'Feeding...' : 'Feed'}

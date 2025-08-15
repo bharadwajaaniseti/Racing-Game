@@ -29,39 +29,50 @@ export const useBarn = create<BarnState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
       
+      // Fetch from animals_with_hunger view to get real-time hunger data
       const { data, error } = await supabase
-        .from('animals')
+        .from('animals_with_hunger')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
-      // Start real-time subscription for hunger updates if not already subscribed
-      const subscription = supabase
+      // Start real-time subscription for animal updates
+      supabase
         .channel('animal_updates')
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'animals',
           filter: `user_id=eq.${user.id}`
-        }, (payload) => {
-          const updatedAnimal = payload.new as Animal;
-          const currentAnimals = get().animals;
-          const updatedAnimals = currentAnimals.map(animal => 
-            animal.id === updatedAnimal.id ? { ...animal, ...updatedAnimal } : animal
-          );
-          set({ animals: updatedAnimals });
-
-          // Show hunger notification if hunger is low
-          if (updatedAnimal.hunger_level !== undefined && updatedAnimal.hunger_level <= 20) {
-            toast.error(`${updatedAnimal.name} is very hungry! (${updatedAnimal.hunger_level}% hunger)`, {
-              duration: 5000,
-              position: 'bottom-right'
-            });
+        }, async () => {
+          // Re-fetch animals from the view to get updated hunger calculations
+          const { data: updatedData, error: refreshError } = await supabase
+            .from('animals_with_hunger')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true })
+          
+          if (!refreshError && updatedData) {
+            set({ animals: updatedData })
+            
+            // Check for low hunger animals and show notifications
+            updatedData.forEach((animal) => {
+              const hungerLevel = animal.current_hunger_level || 100
+              if (hungerLevel <= 20) {
+                toast.error(`${animal.name} is very hungry! (${Math.round(hungerLevel)}% hunger)`, {
+                  duration: 5000,
+                  position: 'bottom-right'
+                })
+              }
+            })
           }
         })
-        .subscribe();
+        .subscribe()
+
+      // Clean up subscription when component unmounts
+      // Note: This will be handled by the component using this store
 
       set({ animals: data || [], loading: false })
     } catch (error) {
@@ -195,13 +206,18 @@ export const useBarn = create<BarnState>((set, get) => ({
         .update({ quantity: training.quantity - 1 })
         .eq('id', training.id)
 
-      // Update local state
-      const updatedAnimal = { ...animal, [stat]: newStatValue, experience: newExperience, level: newLevel }
-      const { animals } = get()
-      const updatedAnimals = animals.map(a => 
-        a.id === animalId ? updatedAnimal : a
-      )
-      set({ animals: updatedAnimals, loading: false })
+      // Update local state by refreshing from animals_with_hunger view
+      const { data: refreshedAnimals } = await supabase
+        .from('animals_with_hunger')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+      
+      if (refreshedAnimals) {
+        set({ animals: refreshedAnimals, loading: false })
+      } else {
+        set({ loading: false })
+      }
 
       const message = `${animal.name} gained ${baseGain} ${stat} and ${experienceGain} experience!`
       toast.success(message)
@@ -273,13 +289,18 @@ export const useBarn = create<BarnState>((set, get) => ({
         .update({ quantity: food.quantity - 1 })
         .eq('id', food.id)
 
-      // Update local state
-      const updatedAnimal = { ...animal, stamina: newStamina }
-      const { animals } = get()
-      const updatedAnimals = animals.map(a => 
-        a.id === animalId ? updatedAnimal : a
-      )
-      set({ animals: updatedAnimals, loading: false })
+      // Update local state by refreshing from animals_with_hunger view
+      const { data: refreshedAnimals } = await supabase
+        .from('animals_with_hunger')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+      
+      if (refreshedAnimals) {
+        set({ animals: refreshedAnimals, loading: false })
+      } else {
+        set({ loading: false })
+      }
 
       const message = `${animal.name} gained ${staminaGain} stamina!`
       toast.success(message)

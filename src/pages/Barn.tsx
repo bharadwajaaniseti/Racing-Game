@@ -4,6 +4,8 @@ import { useUser } from '../store/useUser'
 import { useBarn } from '../store/useBarn'
 import { useInventory } from '../store/useInventory'
 import { useMarket } from '../store/useMarket'
+import { useRealTimeHunger } from '../lib/useRealTimeHunger'
+import { HungerBar } from '../components/HungerBar'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import type { ItemType, MarketItem } from '../game/types'
@@ -25,6 +27,12 @@ export function Barn() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'animals' | 'items' | 'food'>('animals')
+
+  // Real-time hunger tracking
+  const { getHungerLevel, getHungerStatus } = useRealTimeHunger(animals, {
+    updateInterval: 5000, // Update every 5 seconds
+    enabled: activeTab === 'animals' // Only update when viewing animals
+  })
 
   useEffect(() => {
     if (user) {
@@ -175,8 +183,18 @@ export function Barn() {
                     </div>
 
                     <div className="space-y-3 mb-6">
+                      {/* Hunger Bar - Real-time updating */}
+                      <div className="mb-4">
+                        <HungerBar
+                          currentLevel={getHungerLevel(animal.id)}
+                          hungerRate={animal.effective_hunger_rate || 1}
+                          size="sm"
+                          animated={true}
+                        />
+                      </div>
+
+                      {/* Other Stats */}
                       {[
-                        { key: 'hunger', label: 'Hunger', value: animal.hunger_level ?? 100 },
                         { key: 'speed', label: 'Speed', value: animal.speed },
                         { key: 'acceleration', label: 'Acceleration', value: animal.acceleration },
                         { key: 'stamina', label: 'Stamina', value: animal.stamina },
