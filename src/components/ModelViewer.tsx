@@ -112,14 +112,34 @@ function GLBAnimal({
 
     // Forced selection
     if (forcedAnimation) {
-      if (forcedAnimation === 'idle')
+      // First try to find exact match
+      if (names.includes(forcedAnimation)) {
+        return forcedAnimation;
+      }
+      
+      // Then try fuzzy matching
+      const fuzzyMatch = findLike(forcedAnimation);
+      if (fuzzyMatch) {
+        return fuzzyMatch;
+      }
+      
+      // Handle common animation types
+      const lowerForced = forcedAnimation.toLowerCase();
+      if (lowerForced.includes('idle')) {
         return findLike(idleAnim || 'idle', 'idle_inplace') || names[0];
-      if (forcedAnimation === 'run')
+      }
+      if (lowerForced.includes('run') || lowerForced.includes('gallop')) {
         return findLike(runAnim || 'run', 'gallop', 'run_inplace') || names[0];
-      if (forcedAnimation === 'walk')
+      }
+      if (lowerForced.includes('walk')) {
         return findLike(walkAnim || 'walk', 'walk_inplace') || names[0];
-      if (forcedAnimation === 'eat')
+      }
+      if (lowerForced.includes('eat')) {
         return findLike(eatAnim || 'eat') || names[0];
+      }
+      
+      // If no match found, return the forced animation name anyway
+      return forcedAnimation;
     }
 
     // Auto logic
@@ -161,10 +181,11 @@ function GLBAnimal({
   const pickedClipName = pickClipName();
   React.useEffect(() => {
     if (!pickedClipName || Object.keys(actions.current).length === 0) return;
-    if (lastClip.current !== pickedClipName) {
+    // Always play the animation if it's forced, even if it's the same as last
+    if (lastClip.current !== pickedClipName || (forcedAnimation && pickedClipName)) {
       playExclusive(pickedClipName);
     }
-  }, [pickedClipName]);
+  }, [pickedClipName, forcedAnimation]);
 
   // Drive transform from physics each frame
   useFrame(() => {

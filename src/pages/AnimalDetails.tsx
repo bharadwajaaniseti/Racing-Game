@@ -24,6 +24,7 @@ export function AnimalDetails() {
   const [viewMode, setViewMode] = useState<'model' | 'animations'>('model')
   const [showInfo, setShowInfo] = useState(false)
   const [availableAnimations, setAvailableAnimations] = useState<string[]>([])
+  const [isPlayingAnimation, setIsPlayingAnimation] = useState(false)
 
   const foodItems = Object.entries(inventory || {}).reduce<InventoryItem[]>((acc, [id, item]) => {
     if (item.type === 'food') acc.push({ ...item, id })
@@ -233,6 +234,7 @@ export function AnimalDetails() {
                 <button
                   onClick={() => {
                     setCurrentAnimation("");
+                    setIsPlayingAnimation(false);
                     setFeeding(false);
                   }}
                   className="px-3 py-1 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg text-sm"
@@ -265,7 +267,7 @@ export function AnimalDetails() {
                   modelUrl={animal.model_url}
                   scale={animal.model_scale}
                   rotation={animal.model_rotation}
-                  isEating={currentAnimation === "eat"}
+                  isEating={currentAnimation === "eat" || currentAnimation.toLowerCase().includes('eat')}
                   forcedAnimation={currentAnimation}
                   color="#4F46E5"
                   className="h-full"
@@ -285,7 +287,11 @@ export function AnimalDetails() {
                       {availableAnimations.map((animName) => (
                         <button
                           key={animName}
-                          onClick={() => setCurrentAnimation(animName)}
+                          onClick={() => {
+                            console.log('Setting animation to:', animName);
+                            setCurrentAnimation(animName);
+                            setIsPlayingAnimation(true);
+                          }}
                           className={`p-3 rounded-lg border transition-colors ${
                             currentAnimation === animName
                               ? 'bg-cyan-600/20 border-cyan-500 text-white'
@@ -307,6 +313,7 @@ export function AnimalDetails() {
                     <button
                       onClick={() => {
                         setCurrentAnimation("");
+                        setIsPlayingAnimation(false);
                         setViewMode('model');
                       }}
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
