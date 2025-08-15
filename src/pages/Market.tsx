@@ -3,7 +3,7 @@ import { ShoppingCart, Coins, Package, Heart, Zap, Star, Plus, Minus } from 'luc
 import toast from 'react-hot-toast'
 import { useUser } from '../store/useUser'
 import { useMarket } from '../store/useMarket'
-import { ModelViewer } from '../components/ModelViewer'
+import { ModelViewer2 as ModelViewer } from '../components/ModelViewer2'
 import { GoldPackages } from '../components/GoldPackages'
 import type { Animal, ItemType, MarketItem } from '../game/types'
 

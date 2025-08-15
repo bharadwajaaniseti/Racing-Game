@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModelViewer } from './ModelViewer';
+import { ModelViewer2 as ModelViewer } from './ModelViewer2';
 
 type PreviewProps = {
   modelUrl?: string;
