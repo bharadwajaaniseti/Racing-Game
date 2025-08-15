@@ -19,11 +19,11 @@ export function AnimalDetails() {
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [loading, setLoading] = useState(true)
   const [feeding, setFeeding] = useState(false)
-  const [hungerLevel, setHungerLevel] = useState(100) // 100 is full, 0 is hungry
   const [currentAnimation, setCurrentAnimation] = useState("")
   const [viewMode, setViewMode] = useState<'model' | 'animations'>('model')
   const [showInfo, setShowInfo] = useState(false)
   const [availableAnimations, setAvailableAnimations] = useState<string[]>([])
+  const [refreshInterval, setRefreshInterval] = useState<number | null>(null)
 
   const foodItems = Object.entries(inventory || {}).reduce<InventoryItem[]>((acc, [id, item]) => {
     if (item.type === 'food') acc.push({ ...item, id })
@@ -42,11 +42,31 @@ export function AnimalDetails() {
     }
   }, [user, id, fetchInventory])
 
+  // Periodic refresh to update the displayed hunger level
+  useEffect(() => {
+    if (!animal || loading) return;
+
+    // Fetch updated animal data every minute
+    const refreshInterval = setInterval(async () => {
+      const { data: updatedAnimal, error } = await supabase
+        .from('animals_with_hunger')
+        .select('*')
+        .eq('id', animal.id)
+        .single();
+
+      if (!error && updatedAnimal) {
+        setAnimal(updatedAnimal);
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [animal?.id, loading]);
+
   const fetchAnimalDetails = async () => {
     setLoading(true)
     try {
       const { data: animalData, error: animalError } = await supabase
-        .from('animals')
+        .from('animals_with_hunger')
         .select('*')
         .eq('id', id)
         .single()
@@ -55,7 +75,6 @@ export function AnimalDetails() {
       if (!animalData) throw new Error('Animal not found')
 
       setAnimal(animalData)
-      setHungerLevel(animalData.hunger_level ?? 100)
     } catch (error: any) {
       toast.error('Failed to load animal details')
       console.error('Error:', error)
@@ -66,26 +85,47 @@ export function AnimalDetails() {
 
   const handleFeedAnimal = async (foodId: string, recoveryAmount: number) => {
     if (!animal || feeding) return
+    if (animal.hunger_level >= 100) {
+      toast.error('Animal is not hungry!')
+      return
+    }
 
     setFeeding(true)
     try {
+      // First delete the food item from inventory
       const { error: inventoryError } = await supabase
         .from('inventory')
         .delete()
         .eq('id', foodId)
       if (inventoryError) throw inventoryError
 
-      const newHungerLevel = Math.min(100, hungerLevel + recoveryAmount)
+      // Use the server-side function to feed the animal
+      const { error: feedError } = await supabase.rpc('feed_animal', {
+        animal_id: animal.id,
+        amount: recoveryAmount
+      })
+      if (feedError) throw feedError
 
-      const { error: animalError } = await supabase
-        .from('animals')
-        .update({ hunger_level: newHungerLevel })
+      // Fetch the updated animal data
+      const { data: updatedAnimal, error: fetchError } = await supabase
+        .from('animals_with_hunger')
+        .select('*')
         .eq('id', animal.id)
-      if (animalError) throw animalError
-
-      setHungerLevel(newHungerLevel)
+        .single()
+      
+      if (fetchError) throw fetchError
+      setAnimal(updatedAnimal)
       fetchInventory()
-      toast.success('Successfully fed your animal!')
+      
+      // Show different messages based on hunger level
+      if (updatedAnimal.hunger_level >= 100) {
+        toast.success('Your animal is fully fed!')
+      } else {
+        toast.success(`Fed your animal! Hunger restored by ${recoveryAmount}%`)
+      }
+
+      // Play eating animation
+      setCurrentAnimation('Eating')
     } catch (error: any) {
       toast.error('Failed to feed animal')
       console.error('Error:', error)
@@ -166,27 +206,46 @@ export function AnimalDetails() {
             </div>
 
             {/* Hunger Level */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30">
+            <div className={`bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border ${
+              (animal.hunger_level ?? 0) <= 30 ? 'border-red-500/50' : 'border-cyan-500/30'
+            }`}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-white">Hunger Level</h3>
+                <div>
+                  <h3 className="font-bold text-white">Hunger Level</h3>
+                  <p className="text-sm text-gray-400">
+                    Decreases by {animal.hunger_rate || animal.market_hunger_rate || 1} points per minute
+                  </p>
+                </div>
                 <span className={`text-sm font-medium ${
-                  hungerLevel > 70 ? 'text-green-400' :
-                  hungerLevel > 30 ? 'text-yellow-400' :
+                  (animal.hunger_level ?? 0) > 70 ? 'text-green-400' :
+                  (animal.hunger_level ?? 0) > 30 ? 'text-yellow-400' :
                   'text-red-400'
                 }`}>
-                  {hungerLevel}%
+                  {animal.hunger_level ?? 0}%
                 </span>
               </div>
               <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all ${
-                    hungerLevel > 70 ? 'bg-green-500' :
-                    hungerLevel > 30 ? 'bg-yellow-500' :
+                    (animal.hunger_level ?? 0) > 70 ? 'bg-green-500' :
+                    (animal.hunger_level ?? 0) > 30 ? 'bg-yellow-500' :
                     'bg-red-500'
                   }`}
-                  style={{ width: `${hungerLevel}%` }}
+                  style={{ width: `${animal.hunger_level ?? 0}%` }}
                 />
               </div>
+              {(animal.hunger_level ?? 0) <= 30 && (
+                <div className="mt-3 text-sm text-red-400 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  {(animal.hunger_level ?? 0) <= 0 ? (
+                    <span>Too hungry to race! Feed immediately!</span>
+                  ) : (
+                    <span>Low hunger! Feed soon to maintain racing ability.</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -367,7 +426,7 @@ export function AnimalDetails() {
                       <span className="text-green-400">+{item.effect_value}</span>
                       <button
                         onClick={() => handleFeedAnimal(item.id, item.effect_value)}
-                        disabled={feeding || hungerLevel >= 100}
+                        disabled={feeding || (animal.hunger_level ?? 0) >= 100}
                         className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm font-medium transition-colors"
                       >
                         {feeding ? 'Feeding...' : 'Feed'}

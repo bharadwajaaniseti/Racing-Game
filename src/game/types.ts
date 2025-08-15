@@ -46,6 +46,9 @@ export interface Animal {
   walk_anim?: string
   eat_anim?: string
   hunger_level?: number
+  hunger_rate?: number
+  market_hunger_rate?: number
+  last_fed?: string
   isPurchased?: boolean
 }
 

@@ -22,6 +22,7 @@ type MarketAnimal = {
   thumbnail_url?: string;
   is_active?: boolean;
   stock?: number | null;
+  hunger_rate?: number;
 };
 
 export default function MarketAnimalForm({ 
@@ -74,7 +75,8 @@ export default function MarketAnimalForm({
           .insert([{
             name: form.name, type: form.type, description: form.description,
             price: form.price, speed: form.speed, acceleration: form.acceleration,
-            stamina: form.stamina, temper: form.temper, is_active: form.is_active, stock: form.stock
+            stamina: form.stamina, temper: form.temper, is_active: form.is_active, 
+            stock: form.stock, hunger_rate: form.hunger_rate
           }])
           .select('id')
           .single();
@@ -102,6 +104,7 @@ export default function MarketAnimalForm({
         model_url: modelUrl, model_scale: form.model_scale, model_rotation: form.model_rotation,
         idle_anim: form.idle_anim, run_anim: form.run_anim,
         thumbnail_url: thumbUrl, is_active: form.is_active, stock: form.stock,
+        hunger_rate: form.hunger_rate,
       }).eq('id', id!);
       if (upErr) throw upErr;
 
@@ -205,6 +208,11 @@ export default function MarketAnimalForm({
               <label className="flex flex-col gap-1">
                 <span className="text-sm font-medium text-gray-300">Temper</span>
                 <input type="number" value={form.temper} onChange={e=>onChange('temper', Number(e.target.value))} 
+                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"/>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-gray-300">Hunger Rate (points/minute)</span>
+                <input type="number" step="0.1" min="0.1" value={form.hunger_rate} onChange={e=>onChange('hunger_rate', Number(e.target.value))} 
                   className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-shadow"/>
               </label>
             </div>

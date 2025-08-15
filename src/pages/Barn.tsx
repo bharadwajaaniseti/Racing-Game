@@ -54,6 +54,7 @@ export function Barn() {
 
   const getStatIcon = (stat: string) => {
     switch (stat) {
+      case 'hunger': return <Heart className="h-4 w-4 text-red-500" />
       case 'speed': return <Zap className="h-4 w-4" />
       case 'acceleration': return <Gauge className="h-4 w-4" />
       case 'stamina': return <Heart className="h-4 w-4" />
@@ -175,6 +176,7 @@ export function Barn() {
 
                     <div className="space-y-3 mb-6">
                       {[
+                        { key: 'hunger', label: 'Hunger', value: animal.hunger_level ?? 100 },
                         { key: 'speed', label: 'Speed', value: animal.speed },
                         { key: 'acceleration', label: 'Acceleration', value: animal.acceleration },
                         { key: 'stamina', label: 'Stamina', value: animal.stamina },
@@ -320,7 +322,7 @@ export function Barn() {
                               </div>
                               <h3 className="text-lg font-bold text-white">{itemDetails.name}</h3>
                               <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-bold">
-                                {quantity} in stock
+                                {String(quantity)} in stock
                               </span>
                               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                                 itemDetails.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-400' :

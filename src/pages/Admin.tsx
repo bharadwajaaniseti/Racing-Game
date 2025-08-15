@@ -6,6 +6,7 @@ import { ModelViewer2 as ModelViewer } from '../components/ModelViewer2'
 import type { Animal } from '../game/types'
 import MarketAnimalForm from './admin/MarketAnimalForm'
 import MarketItemForm from './admin/MarketItemForm'
+import ManageAnimalHunger from './admin/ManageAnimalHunger'
 
 interface EditingAnimal {
   id?: string;
@@ -66,7 +67,7 @@ export function Admin() {
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null)
   // State for managing editing
   
-  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'items' | 'food' | 'gold'>('animals')
+  const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'items' | 'food' | 'gold' | 'hunger'>('animals')
   const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [showItemForm, setShowItemForm] = useState(false)
@@ -159,6 +160,17 @@ export function Admin() {
               >
                 <span className="h-4 w-4 inline mr-2">💰</span>
                 Gold
+              </button>
+              <button
+                onClick={() => setActiveTab('hunger')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'hunger'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <span className="h-4 w-4 inline mr-2">🍖</span>
+                Hunger Rates
               </button>
               <button
                 onClick={() => setActiveTab('users')}
@@ -520,6 +532,14 @@ export function Admin() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Hunger Management Tab */}
+        {activeTab === 'hunger' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white">Manage Hunger Rates</h2>
+            <ManageAnimalHunger />
           </div>
         )}
 

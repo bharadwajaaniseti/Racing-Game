@@ -36,6 +36,33 @@ export const useBarn = create<BarnState>((set, get) => ({
         .order('created_at', { ascending: true })
 
       if (error) throw error
+
+      // Start real-time subscription for hunger updates if not already subscribed
+      const subscription = supabase
+        .channel('animal_updates')
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'animals',
+          filter: `user_id=eq.${user.id}`
+        }, (payload) => {
+          const updatedAnimal = payload.new as Animal;
+          const currentAnimals = get().animals;
+          const updatedAnimals = currentAnimals.map(animal => 
+            animal.id === updatedAnimal.id ? { ...animal, ...updatedAnimal } : animal
+          );
+          set({ animals: updatedAnimals });
+
+          // Show hunger notification if hunger is low
+          if (updatedAnimal.hunger_level !== undefined && updatedAnimal.hunger_level <= 20) {
+            toast.error(`${updatedAnimal.name} is very hungry! (${updatedAnimal.hunger_level}% hunger)`, {
+              duration: 5000,
+              position: 'bottom-right'
+            });
+          }
+        })
+        .subscribe();
+
       set({ animals: data || [], loading: false })
     } catch (error) {
       const message = (error as Error).message
