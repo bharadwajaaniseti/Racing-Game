@@ -11,6 +11,31 @@ interface AdminUser {
   animal_count?: number
 }
 
+interface MarketAnimal {
+  id: string
+  name: string
+  type: string
+  description?: string
+  price: number
+  speed: number
+  acceleration: number
+  stamina: number
+  temper: number
+  level?: number
+  model_url?: string
+  model_scale?: number
+  model_rotation?: number
+  idle_anim?: string
+  run_anim?: string
+  thumbnail_url?: string
+  is_active?: boolean
+  stock?: number | null
+  hunger_rate?: number
+  created_by?: string
+  created_at?: string
+  updated_at?: string
+}
+
 interface MarketItem {
   id: string
   type: string
@@ -19,22 +44,31 @@ interface MarketItem {
   price: number
   effect_value: number
   created_at: string
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+  is_active?: boolean
+  cooldown_seconds?: number
+  duration_seconds?: number
 }
 
 interface AdminState {
-  animals: Animal[]
+  animals: MarketAnimal[]         // these are market_animals
   users: AdminUser[]
   marketItems: MarketItem[]
   loading: boolean
   error: string | null
+
   fetchAllAnimals: () => Promise<void>
   fetchAllUsers: () => Promise<void>
   fetchMarketItems: () => Promise<void>
-  createMarketAnimal: (animal: Partial<Animal>) => Promise<void>
-  updateAnimal: (animalId: string, updates: Partial<Animal>) => Promise<void>
+
+  createMarketAnimal: (animal: Partial<MarketAnimal>) => Promise<void>
+  updateAnimal: (animalId: string, updates: Partial<MarketAnimal>) => Promise<void>
+  updateHungerRate: (marketAnimalId: string, hunger_rate: number) => Promise<void>
   deleteAnimal: (animalId: string) => Promise<void>
-  createMarketItem: (item: Partial<MarketItem>) => Promise<void>
 }
+
+const MARKET_ANIMAL_COLUMNS =
+  'id,name,type,description,price,speed,acceleration,stamina,temper,level,model_url,model_scale,model_rotation,idle_anim,run_anim,thumbnail_url,is_active,stock,hunger_rate,created_by,created_at,updated_at'
 
 export const useAdmin = create<AdminState>((set, get) => ({
   animals: [],
@@ -49,17 +83,15 @@ export const useAdmin = create<AdminState>((set, get) => ({
       const { data, error } = await supabase
         .from('market_animals')
         .select(`
-          *,
-          created_by_profile:profiles!created_by (
-            username
-          )
+          ${MARKET_ANIMAL_COLUMNS},
+          created_by_profile:profiles!created_by ( username )
         `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      set({ animals: data || [], loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      set({ animals: (data as MarketAnimal[]) ?? [], loading: false })
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
     }
   },
 
@@ -69,21 +101,25 @@ export const useAdmin = create<AdminState>((set, get) => ({
       const { data, error } = await supabase
         .from('profiles')
         .select(`
-          *,
-          animals (count)
+          id, username, email, is_admin, created_at,
+          animals ( count )
         `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      
-      const usersWithCount = data?.map(user => ({
-        ...user,
-        animal_count: user.animals?.[0]?.count || 0
-      })) || []
+
+      const usersWithCount: AdminUser[] = (data ?? []).map((u: any) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        is_admin: u.is_admin,
+        created_at: u.created_at,
+        animal_count: u.animals?.[0]?.count || 0
+      }))
 
       set({ users: usersWithCount, loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
     }
   },
 
@@ -96,73 +132,107 @@ export const useAdmin = create<AdminState>((set, get) => ({
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      set({ marketItems: data || [], loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      set({ marketItems: (data as MarketItem[]) ?? [], loading: false })
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
     }
   },
 
-  createMarketAnimal: async (animal: Partial<Animal>) => {
+  createMarketAnimal: async (animal: Partial<MarketAnimal>) => {
     set({ loading: true, error: null })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const { data: auth } = await supabase.auth.getUser()
+      if (!auth?.user) throw new Error('Not authenticated')
+
+      // Only send valid columns
+      const payload: Partial<MarketAnimal> = {
+        name: animal.name ?? '',
+        type: animal.type ?? 'unknown',
+        description: animal.description ?? '',
+        price: animal.price ?? 100,
+        speed: animal.speed ?? 50,
+        acceleration: animal.acceleration ?? 50,
+        stamina: animal.stamina ?? 50,
+        temper: animal.temper ?? 50,
+        level: animal.level ?? 1,
+        model_url: animal.model_url,
+        model_scale: animal.model_scale ?? 1,
+        model_rotation: animal.model_rotation ?? 0,
+        idle_anim: animal.idle_anim,
+        run_anim: animal.run_anim,
+        thumbnail_url: animal.thumbnail_url,
+        is_active: animal.is_active ?? true,
+        stock: animal.stock ?? null,
+        hunger_rate: animal.hunger_rate ?? 1,
+        created_by: auth.user.id
+      }
 
       const { data, error } = await supabase
         .from('market_animals')
-        .insert([{
-          name: animal.name,
-          type: 'deer',
-          speed: animal.speed,
-          acceleration: animal.acceleration,
-          stamina: animal.stamina,
-          temper: animal.temper,
-          level: animal.level,
-          price: animal.price || 100,
-          created_by: user.id
-        }])
-        .select()
+        .insert([payload])
+        .select(MARKET_ANIMAL_COLUMNS)
         .single()
 
       if (error) throw error
 
       const { animals } = get()
-      set({ animals: [data, ...animals], loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      set({ animals: [data as MarketAnimal, ...(animals ?? [])], loading: false })
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
     }
   },
 
-  updateAnimal: async (animalId: string, updates: Partial<Animal>) => {
+  updateAnimal: async (animalId: string, updates: Partial<MarketAnimal>) => {
     set({ loading: true, error: null })
     try {
-      // Filter out joined fields and only keep actual market_animals columns
-      const {
-        created_by_profile,
-        profiles,
-        ...marketAnimalUpdates
-      } = updates as any
-
-      console.log('Updating animal:', animalId)
-      console.log('Original updates:', updates)
-      console.log('Filtered updates:', marketAnimalUpdates)
+      // Whitelist only real columns from market_animals
+      const allowedKeys: (keyof MarketAnimal)[] = [
+        'name','type','description','price','speed','acceleration','stamina','temper',
+        'level','model_url','model_scale','model_rotation','idle_anim','run_anim',
+        'thumbnail_url','is_active','stock','hunger_rate'
+      ]
+      const filtered: Partial<MarketAnimal> = {}
+      for (const k of allowedKeys) {
+        if (k in updates && (updates as any)[k] !== undefined) {
+          ;(filtered as any)[k] = (updates as any)[k]
+        }
+      }
 
       const { data, error } = await supabase
         .from('market_animals')
-        .update(marketAnimalUpdates)
+        .update(filtered)
         .eq('id', animalId)
-        .select()
-
-      console.log('Update result:', { data, error })
+        .select(MARKET_ANIMAL_COLUMNS)
+        .single()
 
       if (error) throw error
 
-      // Refresh the animals list to get the latest data
-      const { fetchAllAnimals } = get()
-      await fetchAllAnimals()
-    } catch (error) {
-      console.error('Update error:', error)
-      set({ error: (error as Error).message, loading: false })
+      // Refresh list to keep state consistent
+      await get().fetchAllAnimals()
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
+    }
+  },
+
+  // Helper used by ManageAnimalHunger (keeps all edits on market_animals)
+  updateHungerRate: async (marketAnimalId: string, hunger_rate: number) => {
+    // No global spinner; keep it snappy for inline edits
+    try {
+      const { error } = await supabase
+        .from('market_animals')
+        .update({ hunger_rate })
+        .eq('id', marketAnimalId)
+
+      if (error) throw error
+
+      // Optional: refresh local cache
+      const animals = get().animals.map(a =>
+        a.id === marketAnimalId ? { ...a, hunger_rate } : a
+      )
+      set({ animals })
+    } catch (e) {
+      set({ error: (e as Error).message })
+      throw e
     }
   },
 
@@ -177,34 +247,9 @@ export const useAdmin = create<AdminState>((set, get) => ({
       if (error) throw error
 
       const { animals } = get()
-      const filteredAnimals = animals.filter(a => a.id !== animalId)
-      set({ animals: filteredAnimals, loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
-    }
-  },
-
-  createMarketItem: async (item: Partial<MarketItem>) => {
-    set({ loading: true, error: null })
-    try {
-      const { data, error } = await supabase
-        .from('market_items')
-        .insert([{
-          type: item.type,
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          effect_value: item.effect_value || 0
-        }])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      const { marketItems } = get()
-      set({ marketItems: [data, ...marketItems], loading: false })
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false })
+      set({ animals: (animals ?? []).filter(a => a.id !== animalId), loading: false })
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false })
     }
   }
 }))
