@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase';
 import { useBarn } from '../store/useBarn';
 import { useRealTimeHunger } from '../lib/useRealTimeHunger';
 import { HungerBar } from '../components/HungerBar';
-import { Zap, Heart, Gauge, Brain, Star, Award, ShoppingCart, Package } from 'lucide-react'
+import { TrainingModal } from '../components/TrainingModal';
+import { Zap, Heart, Gauge, Brain, Star, Award, ShoppingCart, Package, Clock } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useInventory } from '../store/useInventory'
 import { useMarket } from '../store/useMarket'
@@ -20,13 +20,14 @@ export function Barn() {
     loading, 
     error, 
     fetchAnimals, 
-    trainAnimal 
+    trainingCooldowns,
+    fetchTrainingCooldowns,
+    getTrainingItemsForStat 
   } = useBarn()
   const { items, loading: inventoryLoading, fetchInventory } = useInventory()
   const { fetchMarketItems } = useMarket()
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [actionMessage, setActionMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'animals' | 'items' | 'food'>('animals')
+  const [trainingModal, setTrainingModal] = useState<{animal: any, stat: string} | null>(null)
 
   // Real-time hunger tracking
   const { getHungerLevel } = useRealTimeHunger(animals)
@@ -39,13 +40,30 @@ export function Barn() {
     }
   }, [user, fetchAnimals, fetchInventory, fetchMarketItems])
 
+  // Fetch cooldowns for all animals
+  useEffect(() => {
+    if (animals.length > 0) {
+      animals.forEach(animal => {
+        fetchTrainingCooldowns(animal.id)
+      })
+    }
+  }, [animals.length, fetchTrainingCooldowns])
+
   const handleTrain = async (animalId: string, stat: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
-    setActionLoading(animalId + '-' + stat)
-    const result = await trainAnimal(animalId, stat)
-    setActionMessage(result.message)
-    setTimeout(() => setActionMessage(''), 3000)
-    setActionLoading(null)
+    
+    // Find the animal
+    const animal = animals.find(a => a.id === animalId)
+    if (!animal) return
+
+    // Open training modal for detailed training
+    setTrainingModal({ animal, stat })
+  }
+
+  const formatCooldownTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+    return `${Math.floor(seconds / 3600)}h`
   }
 
   const getStatIcon = (stat: string) => {
@@ -117,12 +135,6 @@ export function Barn() {
             </button>
           </div>
         </div>
-
-        {actionMessage && (
-          <div className="mb-6 bg-blue-900/50 border border-blue-500/50 rounded-lg p-4">
-            <p className="text-blue-400">{actionMessage}</p>
-          </div>
-        )}
 
         {/* Animals Tab */}
         {activeTab === 'animals' ? (
@@ -210,13 +222,46 @@ export function Barn() {
                             <span className={`text-sm font-medium w-8 ${getStatColor(stat.value)}`}>
                               {stat.value}
                             </span>
-                            <button
-                              onClick={(e) => handleTrain(animal.id, stat.key, e)}
-                              disabled={actionLoading === `${animal.id}-${stat.key}`}
-                              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                            >
-                              {actionLoading === `${animal.id}-${stat.key}` ? '...' : 'Train'}
-                            </button>
+                            {(() => {
+                              const cooldownKey = `${animal.id}-${stat.key}`
+                              const cooldownRemaining = trainingCooldowns[cooldownKey] || 0
+                              const availableItems = getTrainingItemsForStat(stat.key)
+                              const canTrain = cooldownRemaining === 0 && availableItems.length > 0 && stat.value < 100
+
+                              return (
+                                <button
+                                  onClick={(e) => handleTrain(animal.id, stat.key, e)}
+                                  disabled={!canTrain}
+                                  className={`px-3 py-1 rounded text-xs transition-all min-w-[70px] ${
+                                    canTrain
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                      : cooldownRemaining > 0
+                                      ? 'bg-yellow-600 text-white cursor-not-allowed'
+                                      : availableItems.length === 0
+                                      ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                                      : stat.value >= 100
+                                      ? 'bg-green-600 text-white cursor-not-allowed'
+                                      : 'bg-gray-600 text-gray-300'
+                                  }`}
+                                  title={
+                                    stat.value >= 100 ? 'Stat maxed out' :
+                                    cooldownRemaining > 0 ? `Cooldown: ${formatCooldownTime(cooldownRemaining)}` :
+                                    availableItems.length === 0 ? 'No training items available' :
+                                    `${availableItems.length} items available`
+                                  }
+                                >
+                                  {stat.value >= 100 ? 'MAX' :
+                                   cooldownRemaining > 0 ? (
+                                     <div className="flex items-center space-x-1">
+                                       <Clock className="h-3 w-3" />
+                                       <span>{formatCooldownTime(cooldownRemaining)}</span>
+                                     </div>
+                                   ) :
+                                   availableItems.length === 0 ? 'No Items' :
+                                   'Train'}
+                                </button>
+                              )
+                            })()}
                           </div>
                         </div>
                       ))}
@@ -383,6 +428,16 @@ export function Barn() {
           </div>
         )}
       </div>
+
+      {/* Training Modal */}
+      {trainingModal && (
+        <TrainingModal
+          animal={trainingModal.animal}
+          stat={trainingModal.stat}
+          isOpen={true}
+          onClose={() => setTrainingModal(null)}
+        />
+      )}
     </div>
   )
 }

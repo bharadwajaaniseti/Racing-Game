@@ -65,26 +65,24 @@ export function Admin() {
   }
 
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null)
-  // State for managing editing
-  
+
+  // Tabs: keep dedicated "Hunger Rates" tab that updates market_animals only.
   const [activeTab, setActiveTab] = useState<'animals' | 'users' | 'items' | 'food' | 'gold' | 'hunger'>('animals')
+
+  // Editing modals/state
   const [editingAnimal, setEditingAnimal] = useState<EditingAnimal | null>(null)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [showItemForm, setShowItemForm] = useState(false)
 
-  // Handle Escape key to close modal
+  // Close animal modal with ESC
   useEffect(() => {
-    if (editingAnimal) {
-      const handleEscape = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          setEditingAnimal(null);
-        }
-      };
-      window.addEventListener('keydown', handleEscape);
-      return () => window.removeEventListener('keydown', handleEscape);
-    }
-  }, [editingAnimal]);
+    if (!editingAnimal) return
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditingAnimal(null) }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [editingAnimal])
 
+  // Load data
   useEffect(() => {
     if (user && profile?.is_admin) {
       fetchAllAnimals()
@@ -238,9 +236,8 @@ export function Admin() {
                               e.stopPropagation()
                               setEditingAnimal({
                                 ...animal,
-                                price: 100 // Default price
+                                price: 100 // default price for market form
                               })
-                              setShowCreateForm(true)
                             }}
                             className="text-blue-400 hover:text-blue-300"
                           >
@@ -461,7 +458,7 @@ export function Admin() {
                     name: '',
                     description: '',
                     price: 0,
-                    effect_value: 0, // This will represent the amount of gold
+                    effect_value: 0, // amount of gold
                     is_active: true,
                     rarity: 'common'
                   })
@@ -535,10 +532,11 @@ export function Admin() {
           </div>
         )}
 
-        {/* Hunger Management Tab */}
+        {/* Hunger Management Tab: IMPORTANT - updates market_animals only */}
         {activeTab === 'hunger' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white">Manage Hunger Rates</h2>
+            {/* Ensure ManageAnimalHunger updates market_animals.hunger_rate so DB triggers fire */}
             <ManageAnimalHunger />
           </div>
         )}
@@ -618,8 +616,8 @@ export function Admin() {
                       )}
                       {item.duration_seconds && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Duration:</span>
-                          <span className="text-cyan-400">{Math.floor(item.duration_seconds / 60)} min</span>
+                        <span className="text-gray-400">Duration:</span>
+                        <span className="text-cyan-400">{Math.floor(item.duration_seconds / 60)} min</span>
                         </div>
                       )}
                       {item.cooldown_seconds && (
@@ -657,14 +655,12 @@ export function Admin() {
           </div>
         )}
 
-        {/* Create/Edit Animal Form */}
+        {/* Create/Edit Animal Modal */}
         {editingAnimal && (
           <div 
             className="fixed inset-0 bg-black/50 flex items-start z-50 overflow-y-auto"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setEditingAnimal(null);
-              }
+              if (e.target === e.currentTarget) setEditingAnimal(null)
             }}
           >
             <div className="bg-gray-800/95 backdrop-blur-sm rounded-xl p-6 border border-cyan-500/30 w-[98vw] mx-auto mt-16">
@@ -673,10 +669,7 @@ export function Admin() {
                   {editingAnimal.id ? 'Edit Animal' : 'Create Animal'}
                 </h3>
                 <button
-                  onClick={() => {
-                    setShowCreateForm(false)
-                    setEditingAnimal(null)
-                  }}
+                  onClick={() => setEditingAnimal(null)}
                   className="text-gray-400 hover:text-white"
                 >
                   <X className="h-5 w-5" />

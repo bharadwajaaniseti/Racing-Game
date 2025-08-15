@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
 import { useUser } from './store/useUser'
+import { useHungerRateNotifications } from './lib/useHungerRateNotifications'
 import { TopBarAuth } from './components/TopBarAuth'
 import { Home } from './pages/Home'
 import { Auth } from './pages/Auth'
@@ -50,6 +51,9 @@ function AuthHandler() {
 
 function App() {
   const { user } = useUser()
+  
+  // Enable hunger rate notifications for authenticated users
+  useHungerRateNotifications()
 
   useEffect(() => {
     // Get initial session

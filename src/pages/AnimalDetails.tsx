@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Info as InfoIcon } from 'lucide-react'
+import { Heart, ArrowLeft, Info as InfoIcon } from 'lucide-react'
 import { useUser } from '../store/useUser'
 import { useBarn } from '../store/useBarn'
 import { useRealTimeHunger } from '../lib/useRealTimeHunger'
