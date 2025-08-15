@@ -68,7 +68,7 @@ interface AdminState {
 }
 
 const MARKET_ANIMAL_COLUMNS =
-  'id,name,type,description,price,speed,acceleration,stamina,temper,level,model_url,model_scale,model_rotation,idle_anim,run_anim,thumbnail_url,is_active,stock,hunger_rate,created_by,created_at,updated_at'
+  'id,name,type,description,price,speed,acceleration,stamina,temper,model_url,model_scale,model_rotation,idle_anim,run_anim,thumbnail_url,is_active,stock,hunger_rate,created_by,created_at'
 
 export const useAdmin = create<AdminState>((set, get) => ({
   animals: [],
@@ -101,7 +101,7 @@ export const useAdmin = create<AdminState>((set, get) => ({
       const { data, error } = await supabase
         .from('profiles')
         .select(`
-          id, username, email, is_admin, created_at,
+          id, username, is_admin, created_at,
           animals ( count )
         `)
         .order('created_at', { ascending: false })
@@ -111,7 +111,6 @@ export const useAdmin = create<AdminState>((set, get) => ({
       const usersWithCount: AdminUser[] = (data ?? []).map((u: any) => ({
         id: u.id,
         username: u.username,
-        email: u.email,
         is_admin: u.is_admin,
         created_at: u.created_at,
         animal_count: u.animals?.[0]?.count || 0

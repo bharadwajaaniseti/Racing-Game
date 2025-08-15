@@ -9,7 +9,7 @@ interface AnimalRow {
   market_hunger_rate: number | null; // market_animals.hunger_rate (global)
   market_animal_id: string;       // animals.market_animal_id
 }
-}
+
 
 export default function ManageAnimalHunger() {
   const [rows, setRows] = useState<AnimalRow[]>([]);
@@ -22,12 +22,20 @@ export default function ManageAnimalHunger() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-  .from('animals_with_hunger')
-  .select('id, name, hunger_rate, market_hunger_rate, market_animal_id')
+        .from('market_animals')
+        .select('id, name, hunger_rate')
         .order('name');
 
       if (error) throw error;
-      setRows((data as AnimalRow[]) || []);
+      // Map to AnimalRow format (no overrides, only market rates)
+      const rows = (data ?? []).map((ma: any) => ({
+        id: ma.id,
+        name: ma.name,
+        hunger_rate: null, // no override in market_animals
+        market_hunger_rate: ma.hunger_rate,
+        market_animal_id: ma.id,
+      }));
+      setRows(rows);
     } catch (error: any) {
       console.error(error);
       toast.error('Failed to load animals');
@@ -87,10 +95,6 @@ export default function ManageAnimalHunger() {
     } catch (error: any) {
       console.error(error);
       toast.error('Failed to update this animal’s rate');
-    } finally {
-      setSavingId(null);
-    }
-  }
     } finally {
       setSavingId(null);
     }
