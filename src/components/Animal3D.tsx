@@ -16,6 +16,8 @@ export interface Animal3DProps {
   idleAnim?: string;           // preferred clip names
   walkAnim?: string;
   runAnim?: string;
+  jumping?: boolean;
+  jumpProgress?: number;
 }
 
 /* ---------------- GLB renderer (no conditional hooks) ---------------- */
@@ -147,7 +149,9 @@ function BlockyAnimal({
   color = '#8B4513',
   scale = 1,
   yawOffsetDeg = 0,
-}: Required<Pick<Animal3DProps, 'animal' | 'color' | 'scale' | 'yawOffsetDeg'>>) {
+  jumping = false,
+  jumpProgress = 0,
+}: Required<Pick<Animal3DProps, 'animal' | 'color' | 'scale' | 'yawOffsetDeg' | 'jumping' | 'jumpProgress'>>) {
   const groupRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<Mesh>(null);
   const legs = useRef<Mesh[]>([]);
@@ -164,7 +168,9 @@ function BlockyAnimal({
   useFrame(() => {
     const g = groupRef.current;
     if (!g) return;
-    g.position.set(animal.position.x, animal.position.y + 1, animal.position.z);
+  // If jumping, animate Y position with a jump arc
+  const jumpY = jumping ? Math.sin(Math.PI * jumpProgress) * 3 : 0;
+  g.position.set(animal.position.x, animal.position.y + 1 + jumpY, animal.position.z);
     const vx = animal.velocity.x, vz = animal.velocity.z;
     if (Math.abs(vx) + Math.abs(vz) > 1e-4) {
       const ang = Math.atan2(vx, vz);
@@ -227,6 +233,8 @@ export function Animal3D(props: Animal3DProps) {
     idleAnim = 'Idle',
     walkAnim = 'Walk',
     runAnim  = 'Gallop',
+    jumping = false,
+    jumpProgress = 0,
   } = props;
 
   return modelUrl ? (
@@ -245,6 +253,8 @@ export function Animal3D(props: Animal3DProps) {
       color={color}
       scale={scale}
       yawOffsetDeg={yawOffsetDeg}
+      jumping={jumping}
+      jumpProgress={jumpProgress}
     />
   );
 }

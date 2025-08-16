@@ -63,6 +63,8 @@ export interface RaceAnimal extends Animal {
   distance: number
   finished: boolean
   finishTime?: number
+  jumping?: boolean
+  jumpProgress?: number
 }
 
 export interface Race {
