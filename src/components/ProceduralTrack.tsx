@@ -650,65 +650,72 @@ function DemoAnimals({
 
   return (
     <group>
-      {herd.current.map((a: any, i: number) => (
-        <group key={i} ref={(el) => { if (el) { roots.current[i] = el; outRefs.current[i] = el; } }}>
-          {a.url ? (
-            <SkinnedAnimal
-              url={a.url as string}
-              clip={a.clip}
-              scale={a.scale}
-              yaw={a.yaw}
-              gait={a.speed ? a.speed / 3.5 : 1}
-              fitHeight={a.fitHeight}
-            />
-          ) : (
-            <>
-              {/* Placeholder primitive if no model provided */}
-              <mesh position={[0, 0.55, 0]} castShadow>
-                <boxGeometry args={[1.2, 0.5, 0.6]} />
-                <meshStandardMaterial color={a.color} />
-              </mesh>
-              <mesh position={[0, 0.72, 0.36]} castShadow>
-                <boxGeometry args={[0.16, 0.25, 0.18]} />
-                <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.1)} />
-              </mesh>
-              <mesh position={[0, 0.86, 0.48]} castShadow>
-                <sphereGeometry args={[0.16, 12, 12]} />
-                <meshStandardMaterial color={a.color} />
-              </mesh>
-              <mesh position={[0, 0.75, -0.36]} castShadow>
-                <coneGeometry args={[0.06, 0.25, 6]} />
-                <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.15)} />
-              </mesh>
-              {/* Placeholder legs for primitives only */}
-              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lf = el!; }} position={[0.28, 0.4, 0.22]}>
-                <mesh position={[0, -0.22, 0]} castShadow>
-                  <boxGeometry args={[0.12, 0.44, 0.12]} />
-                  <meshStandardMaterial color="#5a3d1e" />
+      {herd.current.map((a: any, i: number) => {
+        // Pick animation clip based on raceRef.current.phase
+        let animClip = a.clip;
+        const phase = raceRef.current?.phase;
+        if (phase === 'countdown') animClip = 'Idle';
+        if (phase === 'running') animClip = 'Gallop';
+        return (
+          <group key={i} ref={(el) => { if (el) { roots.current[i] = el; outRefs.current[i] = el; } }}>
+            {a.url ? (
+              <SkinnedAnimal
+                url={a.url as string}
+                clip={animClip}
+                scale={a.scale}
+                yaw={a.yaw}
+                gait={a.speed ? a.speed / 3.5 : 1}
+                fitHeight={a.fitHeight}
+              />
+            ) : (
+              <>
+                {/* Placeholder primitive if no model provided */}
+                <mesh position={[0, 0.55, 0]} castShadow>
+                  <boxGeometry args={[1.2, 0.5, 0.6]} />
+                  <meshStandardMaterial color={a.color} />
                 </mesh>
-              </group>
-              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rf = el!; }} position={[-0.28, 0.4, 0.22]}>
-                <mesh position={[0, -0.22, 0]} castShadow>
-                  <boxGeometry args={[0.12, 0.44, 0.12]} />
-                  <meshStandardMaterial color="#5a3d1e" />
+                <mesh position={[0, 0.72, 0.36]} castShadow>
+                  <boxGeometry args={[0.16, 0.25, 0.18]} />
+                  <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.1)} />
                 </mesh>
-              </group>
-              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lb = el!; }} position={[0.28, 0.4, -0.22]}>
-                <mesh position={[0, -0.22, 0]} castShadow>
-                  <boxGeometry args={[0.12, 0.44, 0.12]} />
-                  <meshStandardMaterial color="#5a3d1e" />
+                <mesh position={[0, 0.86, 0.48]} castShadow>
+                  <sphereGeometry args={[0.16, 12, 12]} />
+                  <meshStandardMaterial color={a.color} />
                 </mesh>
-              </group>
-              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rb = el!; }} position={[-0.28, 0.4, -0.22]}>
-                <mesh position={[0, -0.22, 0]} castShadow>
-                  <boxGeometry args={[0.12, 0.44, 0.12]} />
-                  <meshStandardMaterial color="#5a3d1e" />
+                <mesh position={[0, 0.75, -0.36]} castShadow>
+                  <coneGeometry args={[0.06, 0.25, 6]} />
+                  <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.15)} />
                 </mesh>
-              </group>
-            </>
-          )}
-        </group>
-      ))}
+                {/* Placeholder legs for primitives only */}
+                <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lf = el!; }} position={[0.28, 0.4, 0.22]}>
+                  <mesh position={[0, -0.22, 0]} castShadow>
+                    <boxGeometry args={[0.12, 0.44, 0.12]} />
+                    <meshStandardMaterial color="#5a3d1e" />
+                  </mesh>
+                </group>
+                <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rf = el!; }} position={[-0.28, 0.4, 0.22]}>
+                  <mesh position={[0, -0.22, 0]} castShadow>
+                    <boxGeometry args={[0.12, 0.44, 0.12]} />
+                    <meshStandardMaterial color="#5a3d1e" />
+                  </mesh>
+                </group>
+                <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lb = el!; }} position={[0.28, 0.4, -0.22]}>
+                  <mesh position={[0, -0.22, 0]} castShadow>
+                    <boxGeometry args={[0.12, 0.44, 0.12]} />
+                    <meshStandardMaterial color="#5a3d1e" />
+                  </mesh>
+                </group>
+                <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rb = el!; }} position={[-0.28, 0.4, -0.22]}>
+                  <mesh position={[0, -0.22, 0]} castShadow>
+                    <boxGeometry args={[0.12, 0.44, 0.12]} />
+                    <meshStandardMaterial color="#5a3d1e" />
+                  </mesh>
+                </group>
+              </>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 }
