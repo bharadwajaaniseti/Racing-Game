@@ -1,10 +1,23 @@
+// FILE: src/components/ProceduralTrack.tsx
 import React, { useMemo, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { GroupProps } from "@react-three/fiber";
-import { useFrame, Canvas, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows, OrbitControls } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Environment, ContactShadows, OrbitControls, useGLTF, useAnimations } from "@react-three/drei";
 
 export type TrackTheme = "street" | "forest";
+
+// External animal model config you can pass from Race.tsx
+export type AnimalSpec = {
+  name: string;
+  color?: string;
+  url?: string;
+  clip?: string;
+  scale?: number;
+  yaw?: number;
+  speed?: number;
+  fitHeight?: number; // normalized height in world units
+};
 
 const ANIMAL_NAMES = [
   "Deer",
@@ -168,6 +181,15 @@ function placeOnTrack(curve: THREE.CatmullRomCurve3, width: number, t: number, l
   return p.clone().add(n.multiplyScalar(THREE.MathUtils.clamp(lateral, -width / 2, width / 2)));
 }
 
+// ---- NEW: even lane spacing across track (no overlap) ----
+function computeLanes(count: number, width: number, sideMargin = 0.9) {
+  if (count <= 1) return [0];
+  const usable = Math.max(0, width - sideMargin * 2);
+  const step = usable / (count - 1);
+  const left = -usable / 2;
+  return Array.from({ length: count }, (_, i) => left + i * step);
+}
+
 /** ---------------- Terrain + Track Component ---------------- */
 export function ProceduralTrack({ options, ...groupProps }: GroupProps & { options: TrackOptions }) {
   const heightAt = useMemo(() => makeHeightFn(options.seed), [options.seed]);
@@ -311,22 +333,41 @@ export function ProceduralTrack({ options, ...groupProps }: GroupProps & { optio
 }
 
 // ---------------- Premium Scene Wrapper ----------------
-export function PremiumTrackDemo({ options, followIndex = 0, onAnimalsReady, onPositions, onPhase, raceId = 0 }: { options: TrackOptions; followIndex?: number; onAnimalsReady?: (list: { name: string; color: string }[]) => void; onPositions?: (rows: { index: number; name: string; color: string; progress: number; finished: boolean; rank: number; time?: number }[]) => void; onPhase?: (p: { phase: 'idle'|'countdown'|'running'|'finished'; countdown?: number }) => void; raceId?: number }) {
+export function PremiumTrackDemo({
+  options, followIndex = 0, onAnimalsReady, onPositions, onPhase, raceId = 0, animalsConfig
+}: {
+  options: TrackOptions;
+  followIndex?: number;
+  onAnimalsReady?: (list: { name: string; color: string }[]) => void;
+  onPositions?: (rows: { index: number; name: string; color: string; progress: number; finished: boolean; rank: number; time?: number }[]) => void;
+  onPhase?: (p: { phase: 'idle'|'countdown'|'running'|'finished'; countdown?: number }) => void;
+  raceId?: number;
+  animalsConfig?: AnimalSpec[];
+}) {
   const heightAt = useMemo(() => makeHeightFn(options.seed), [options.seed]);
   const curve = useMemo(() => generateCenterline(options, heightAt), [options, heightAt]);
   const totalLen = useMemo(() => curve.getLength(), [curve]);
   const controls: any = useThree((s) => (s as any).controls);
 
   const animals = useMemo(() => {
-    const N = 6;
-    return new Array(N).fill(0).map((_, i) => ({
-      name: ANIMAL_NAMES[i % ANIMAL_NAMES.length],
-      color: new THREE.Color().setHSL((i * 0.12) % 1, 0.65, 0.55),
+    const base = (animalsConfig && animalsConfig.length)
+      ? animalsConfig
+      : new Array(6).fill(0).map((_, i) => ({ name: ANIMAL_NAMES[i % ANIMAL_NAMES.length] }));
+    return base.map((spec, i) => ({
+      name: spec.name ?? ANIMAL_NAMES[i % ANIMAL_NAMES.length],
+      color: new THREE.Color(spec.color ?? new THREE.Color().setHSL((i * 0.12) % 1, 0.65, 0.55)),
+      url: spec.url,
+      clip: spec.clip,
+      scale: spec.scale ?? 1,
+      yaw: spec.yaw ?? 0,
+      speed: spec.speed,
+      fitHeight: spec.fitHeight,
     }));
-  }, [options.seed]);
+  }, [animalsConfig, options.seed]);
 
   React.useEffect(() => {
-    onAnimalsReady?.(animals.map((a) => ({ name: a.name, color: `#${a.color.getHexString()}` })));
+    onAnimalsReady?.(animals.map((a) => ({ name: a.name, color: `#${(a.color as THREE.Color).getHexString()}` })));
+    animals.forEach((a) => a.url && useGLTF.preload(a.url as string));
   }, [animals, onAnimalsReady]);
 
   const animalRefs = useRef<THREE.Group[]>([]);
@@ -468,17 +509,99 @@ function CenterDashes({ curve, width, dash = 2, gap = 1 }: { curve: THREE.Curve<
   );
 }
 
+/** -------- Skinned GLB animal with clip playback -------- */
+function SkinnedAnimal({
+  url, clip, scale = 1, yaw = 0, gait = 1, fitHeight
+}: { url: string; clip?: string; scale?: number; yaw?: number; gait?: number; fitHeight?: number }) {
+  const root = React.useRef<THREE.Group>(null);
+  const { scene, animations } = useGLTF(url) as any;
+  const { actions, names, mixer } = useAnimations(animations, root);
+
+  // Compute scale from bounding box if fitHeight is provided
+  const computedScale = React.useMemo(() => {
+    if (!scene || !fitHeight) return scale;
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    if (size.y > 0) return (scale ?? 1) * (fitHeight / size.y);
+    return scale;
+  }, [scene, scale, fitHeight]);
+
+  React.useLayoutEffect(() => {
+    scene.traverse((o: any) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    const bbox = new THREE.Box3().setFromObject(scene);
+    const yOffset = -bbox.min.y * (computedScale ?? 1);
+    if (root.current) root.current.position.y = yOffset; // put feet on ground
+  }, [scene, computedScale]);
+
+  React.useEffect(() => {
+    const name = (clip && actions[clip]) ? clip : (names[0] ?? undefined);
+    const action = name ? actions[name] : undefined;
+    action?.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.2).play();
+    return () => { Object.values(actions).forEach((a: any) => a?.fadeOut(0.1)); };
+  }, [clip, actions, names]);
+
+  React.useEffect(() => { if (mixer) mixer.timeScale = gait ?? 1; }, [gait, mixer]);
+
+  return (
+    <group ref={root} rotation={[0, yaw, 0]} scale={computedScale}>
+      <primitive object={scene} />
+    </group>
+  );
+}
+
 /** -------- Demo animals with race logic -------- */
-function DemoAnimals({ curve, width, totalLen, animals = [], outRefs, raceId = 0, onPositions, onPhase }: { curve: THREE.Curve<THREE.Vector3>; width: number; totalLen: number; animals?: { name: string; color: THREE.Color }[]; outRefs: React.MutableRefObject<THREE.Group[]>; raceId?: number; onPositions?: (rows: { index: number; name: string; color: string; progress: number; finished: boolean; rank: number; time?: number }[]) => void; onPhase?: (p: { phase: 'idle'|'countdown'|'running'|'finished'; countdown?: number }) => void; }) {
+function DemoAnimals({
+  curve, width, totalLen, animals = [], outRefs, raceId = 0, onPositions, onPhase
+}: {
+  curve: THREE.Curve<THREE.Vector3>;
+  width: number;
+  totalLen: number;
+  animals?: Array<{ name: string; color: THREE.Color; url?: string; clip?: string; scale?: number; yaw?: number; speed?: number; fitHeight?: number }>;
+  outRefs: React.MutableRefObject<THREE.Group[]>;
+  raceId?: number;
+  onPositions?: (rows: { index: number; name: string; color: string; progress: number; finished: boolean; rank: number; time?: number }[]) => void;
+  onPhase?: (p: { phase: 'idle'|'countdown'|'running'|'finished'; countdown?: number }) => void;
+}) {
   const startU = 0.02; const finishU = 0.98;
-  const safeAnimals = animals && animals.length ? animals : new Array(6).fill(0).map((_, i) => ({ name: ANIMAL_NAMES[i % ANIMAL_NAMES.length], color: new THREE.Color().setHSL((i * 0.12) % 1, 0.65, 0.55) }));
-  const herd = useRef(safeAnimals.map((a, i) => ({ name: a.name, u: startU, speed: 3.2 + Math.random() * 1.6, lane: ((i % 3) - 1) * (width * 0.22), color: a.color, step: Math.random() * Math.PI * 2, finished: false, time: 0 })));
+
+  const safeAnimals = animals && animals.length
+    ? animals
+    : new Array(6).fill(0).map((_, i) => ({ name: ANIMAL_NAMES[i % ANIMAL_NAMES.length], color: new THREE.Color().setHSL((i * 0.12) % 1, 0.65, 0.55) } as any));
+
+  // NEW: compute evenly spaced lanes across the track
+  const lanes = React.useMemo(() => computeLanes(safeAnimals.length, width, 0.9), [safeAnimals.length, width]);
+
+  const herd = useRef(
+    safeAnimals.map((a: any, i: number) => ({
+      name: a.name,
+      u: startU,
+      speed: (a.speed ?? (3.2 + Math.random() * 1.6)),
+      lane: lanes[i],                         // evenly spaced
+      color: a.color,
+      url: a.url,
+      clip: a.clip,
+      scale: a.scale ?? 1,
+      yaw: a.yaw ?? 0,
+      fitHeight: a.fitHeight,
+      step: Math.random() * Math.PI * 2,
+      finished: false,
+      time: 0,
+    })) as any
+  );
+
+  // Keep lanes in sync if width or count changes during runtime
+  React.useEffect(() => {
+    const L = computeLanes(safeAnimals.length, width, 0.9);
+    herd.current.forEach((h: any, i: number) => { h.lane = L[i]; });
+  }, [safeAnimals.length, width]);
+
   const roots = useRef<THREE.Group[]>([]);
   const legs = useRef<Array<{ lf?: THREE.Group; rf?: THREE.Group; lb?: THREE.Group; rb?: THREE.Group }>>([]);
   const raceRef = useRef<{ phase: 'idle'|'countdown'|'running'|'finished'; countdown: number; finishedCount: number; clock: number }>({ phase: 'idle', countdown: 3, finishedCount: 0, clock: 0 });
 
   React.useEffect(() => {
-    herd.current.forEach((h) => { h.u = startU; h.finished = false; h.time = 0; h.step = Math.random() * Math.PI * 2; });
+    herd.current.forEach((h: any) => { h.u = startU; h.finished = false; h.time = 0; h.step = Math.random() * Math.PI * 2; });
     raceRef.current = { phase: 'countdown', countdown: 3, finishedCount: 0, clock: 0 };
     onPhase?.({ phase: 'countdown', countdown: 3 });
   }, [raceId]);
@@ -489,7 +612,7 @@ function DemoAnimals({ curve, width, totalLen, animals = [], outRefs, raceId = 0
       rstate.countdown -= dt; const whole = Math.ceil(Math.max(0, rstate.countdown)); onPhase?.({ phase: 'countdown', countdown: whole });
       if (rstate.countdown <= 0) { rstate.phase = 'running'; onPhase?.({ phase: 'running' }); }
     } else if (rstate.phase === 'running') {
-      arr.forEach((a) => {
+      arr.forEach((a: any) => {
         if (a.finished) return;
         a.u += (a.speed * dt) / totalLen;
         if (a.u >= finishU) { a.u = finishU; a.finished = true; a.time = rstate.clock; rstate.finishedCount += 1; if (rstate.finishedCount === arr.length) { rstate.phase = 'finished'; onPhase?.({ phase: 'finished' }); } }
@@ -497,67 +620,93 @@ function DemoAnimals({ curve, width, totalLen, animals = [], outRefs, raceId = 0
     }
 
     const r = roots.current;
-    arr.forEach((a, i) => {
+    arr.forEach((a: any, i: number) => {
       const p = curve.getPointAt(a.u); const tan = curve.getTangentAt(a.u).normalize();
-      const n = new THREE.Vector3(-tan.z, 0, tan.x).normalize(); const pos = p.clone().add(n.multiplyScalar(THREE.MathUtils.clamp(a.lane, -width/2 + 0.5, width/2 - 0.5)));
+      const n = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+      const pos = p.clone().add(n.multiplyScalar(THREE.MathUtils.clamp(a.lane, -width/2 + 0.5, width/2 - 0.5)));
       const g = r[i]; if (!g) return; g.position.copy(pos); g.rotation.y = Math.atan2(tan.x, tan.z);
-      const amp = 0.6; const phase = a.step += dt * (a.finished ? 0 : a.speed * 2.2);
+
+      // Only animate placeholder legs
+      const amp = 0.6; const phase = (a.step += dt * (a.finished ? 0 : a.speed * 2.2));
       const L = legs.current[i]; if (L?.lf) L.lf.rotation.x = Math.sin(phase) * amp; if (L?.rb) L.rb.rotation.x = Math.sin(phase) * amp; if (L?.rf) L.rf.rotation.x = Math.sin(phase + Math.PI) * amp; if (L?.lb) L.lb.rotation.x = Math.sin(phase + Math.PI) * amp;
     });
 
     const denom = (finishU - startU) || 1;
-    const rows = arr.map((a, i) => ({ index: i, name: a.name, color: `#${(a.color as THREE.Color).getHexString()}`, progress: THREE.MathUtils.clamp((a.u - startU) / denom, 0, 1), finished: a.finished, time: a.time || undefined }))
-      .sort((A, B) => (B.progress - A.progress) || ((A.time ?? Infinity) - (B.time ?? Infinity)))
-      .map((r, idx) => ({ ...r, rank: idx + 1 }));
-    onPositions?.(rows);
+    const rows = arr
+      .map((a: any, i: number) => ({
+        index: i,
+        name: a.name,
+        color: `#${(a.color as THREE.Color).getHexString()}`,
+        progress: THREE.MathUtils.clamp((a.u - startU) / denom, 0, 1),
+        finished: a.finished,
+        time: a.time || undefined,
+      }))
+      .sort((A: any, B: any) => (B.progress - A.progress) || ((A.time ?? Infinity) - (B.time ?? Infinity)))
+      .map((r: any, idx: number) => ({ ...r, rank: idx + 1 }));
 
+    onPositions?.(rows);
     if (outRefs) outRefs.current = roots.current;
   });
 
   return (
     <group>
-      {herd.current.map((a, i) => (
+      {herd.current.map((a: any, i: number) => (
         <group key={i} ref={(el) => { if (el) { roots.current[i] = el; outRefs.current[i] = el; } }}>
-          <mesh position={[0, 0.55, 0]} castShadow>
-            <boxGeometry args={[1.2, 0.5, 0.6]} />
-            <meshStandardMaterial color={a.color} />
-          </mesh>
-          <mesh position={[0, 0.72, 0.36]} castShadow>
-            <boxGeometry args={[0.16, 0.25, 0.18]} />
-            <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.1)} />
-          </mesh>
-          <mesh position={[0, 0.86, 0.48]} castShadow>
-            <sphereGeometry args={[0.16, 12, 12]} />
-            <meshStandardMaterial color={a.color} />
-          </mesh>
-          <mesh position={[0, 0.75, -0.36]} castShadow>
-            <coneGeometry args={[0.06, 0.25, 6]} />
-            <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.15)} />
-          </mesh>
-          <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lf = el!; }} position={[0.28, 0.4, 0.22]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <boxGeometry args={[0.12, 0.44, 0.12]} />
-              <meshStandardMaterial color="#5a3d1e" />
-            </mesh>
-          </group>
-          <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rf = el!; }} position={[-0.28, 0.4, 0.22]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <boxGeometry args={[0.12, 0.44, 0.12]} />
-              <meshStandardMaterial color="#5a3d1e" />
-            </mesh>
-          </group>
-          <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lb = el!; }} position={[0.28, 0.4, -0.22]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <boxGeometry args={[0.12, 0.44, 0.12]} />
-              <meshStandardMaterial color="#5a3d1e" />
-            </mesh>
-          </group>
-          <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rb = el!; }} position={[-0.28, 0.4, -0.22]}>
-            <mesh position={[0, -0.22, 0]} castShadow>
-              <boxGeometry args={[0.12, 0.44, 0.12]} />
-              <meshStandardMaterial color="#5a3d1e" />
-            </mesh>
-          </group>
+          {a.url ? (
+            <SkinnedAnimal
+              url={a.url as string}
+              clip={a.clip}
+              scale={a.scale}
+              yaw={a.yaw}
+              gait={a.speed ? a.speed / 3.5 : 1}
+              fitHeight={a.fitHeight}
+            />
+          ) : (
+            <>
+              {/* Placeholder primitive if no model provided */}
+              <mesh position={[0, 0.55, 0]} castShadow>
+                <boxGeometry args={[1.2, 0.5, 0.6]} />
+                <meshStandardMaterial color={a.color} />
+              </mesh>
+              <mesh position={[0, 0.72, 0.36]} castShadow>
+                <boxGeometry args={[0.16, 0.25, 0.18]} />
+                <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.1)} />
+              </mesh>
+              <mesh position={[0, 0.86, 0.48]} castShadow>
+                <sphereGeometry args={[0.16, 12, 12]} />
+                <meshStandardMaterial color={a.color} />
+              </mesh>
+              <mesh position={[0, 0.75, -0.36]} castShadow>
+                <coneGeometry args={[0.06, 0.25, 6]} />
+                <meshStandardMaterial color={(a.color as THREE.Color).clone().offsetHSL(0, 0, -0.15)} />
+              </mesh>
+              {/* Placeholder legs for primitives only */}
+              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lf = el!; }} position={[0.28, 0.4, 0.22]}>
+                <mesh position={[0, -0.22, 0]} castShadow>
+                  <boxGeometry args={[0.12, 0.44, 0.12]} />
+                  <meshStandardMaterial color="#5a3d1e" />
+                </mesh>
+              </group>
+              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rf = el!; }} position={[-0.28, 0.4, 0.22]}>
+                <mesh position={[0, -0.22, 0]} castShadow>
+                  <boxGeometry args={[0.12, 0.44, 0.12]} />
+                  <meshStandardMaterial color="#5a3d1e" />
+                </mesh>
+              </group>
+              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].lb = el!; }} position={[0.28, 0.4, -0.22]}>
+                <mesh position={[0, -0.22, 0]} castShadow>
+                  <boxGeometry args={[0.12, 0.44, 0.12]} />
+                  <meshStandardMaterial color="#5a3d1e" />
+                </mesh>
+              </group>
+              <group ref={(el) => { if (!legs.current[i]) legs.current[i] = {}; legs.current[i].rb = el!; }} position={[-0.28, 0.4, -0.22]}>
+                <mesh position={[0, -0.22, 0]} castShadow>
+                  <boxGeometry args={[0.12, 0.44, 0.12]} />
+                  <meshStandardMaterial color="#5a3d1e" />
+                </mesh>
+              </group>
+            </>
+          )}
         </group>
       ))}
     </group>
